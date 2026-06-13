@@ -8,10 +8,11 @@ import Redis from "ioredis";
 // We will attempt to connect to Redis. If it fails (e.g. local dev without Redis),
 // we gracefully fall back to an in-memory Map so the app doesn't crash.
 const REDIS_URL = process.env.REDIS_URL || '';
+const IS_VERCEL = process.env.VERCEL === '1';
 
 let redisClient: Redis | null = null;
 
-if (REDIS_URL) {
+if (REDIS_URL && !IS_VERCEL) {
   try {
     redisClient = new Redis(REDIS_URL, {
       maxRetriesPerRequest: 3,
