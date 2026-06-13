@@ -37,16 +37,18 @@ let emailQueue: any = null;
 const connection = parsedRedisConnection();
 
 if (connection) {
-  try {
-    // Dynamic import so Vercel bundler never tries to load bullmq's worker_threads
-    const { Queue } = await import('bullmq');
-    payoutQueue = new Queue('payout-processing', { connection });
-    notificationQueue = new Queue('notification-dispatch', { connection });
-    emailQueue = new Queue('email-dispatch', { connection });
-    console.log('✅ BullMQ queue system initialized');
-  } catch (err: any) {
-    console.warn('⚠️ BullMQ failed to initialize, running jobs synchronously:', err.message);
-  }
+  (async () => {
+    try {
+      // Dynamic import so Vercel bundler never tries to load bullmq's worker_threads
+      const { Queue } = await import('bullmq');
+      payoutQueue = new Queue('payout-processing', { connection });
+      notificationQueue = new Queue('notification-dispatch', { connection });
+      emailQueue = new Queue('email-dispatch', { connection });
+      console.log('✅ BullMQ queue system initialized');
+    } catch (err: any) {
+      console.warn('⚠️ BullMQ failed to initialize, running jobs synchronously:', err.message);
+    }
+  })();
 } else {
   console.warn('⚠️ REDIS_URL not set or running on Vercel. BullMQ queues disabled — jobs will run synchronously.');
 }
