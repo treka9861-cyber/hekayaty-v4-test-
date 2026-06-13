@@ -1,14 +1,19 @@
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegStatic from 'ffmpeg-static';
+// Dynamically load ffmpeg-static to prevent crashes on Vercel
+let ffmpegStatic: string | null = null;
+import('ffmpeg-static').then(m => {
+    ffmpegStatic = m.default;
+    if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic);
+}).catch(e => {
+    console.warn("⚠️ ffmpeg-static failed to load:", e);
+});
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import { randomUUID } from 'node:crypto';
 
-if (ffmpegStatic) {
-    ffmpeg.setFfmpegPath(ffmpegStatic);
-}
+
 
 const unlink = promisify(fs.unlink);
 const mkdir = promisify(fs.mkdir);

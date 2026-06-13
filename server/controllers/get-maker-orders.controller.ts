@@ -8,8 +8,8 @@ export const getMakerOrders = async (req: any, res: any) => {
         if (!authHeader) throw new Error('Unauthorized: Missing token')
 
         const supabaseAdmin = createClient(
-            process.env['SUPABASE_URL'] ?? '',
-            process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? ''
+            process.env['SUPABASE_URL'] || 'https://dummy.supabase.co',
+            process.env['SUPABASE_SERVICE_ROLE_KEY'] || 'dummy'
         )
 
         const token = authHeader.replace('Bearer ', '')

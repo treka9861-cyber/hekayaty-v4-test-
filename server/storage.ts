@@ -23,10 +23,10 @@ const sessionStore = redisClient
   ? new RedisStore({ client: redisClient, prefix: "hekayaty:session:" }) 
   : new MemoryStore({ checkPeriod: 86400000 });
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://dummy.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy';
 
-if (!supabaseUrl || !supabaseKey) {
+if (supabaseUrl === 'https://dummy.supabase.co') {
   console.warn("⚠️ Supabase credentials missing during storage initialization.");
 }
 
