@@ -17,8 +17,8 @@ import { Feather, Loader2, Eye, EyeOff } from "lucide-react";
 import { insertUserSchema } from "@shared/schema";
 
 const loginSchema = z.object({
-    email: z.string().email("Valid email is required"),
-    password: z.string().min(1, "Password is required"),
+    email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
+    password: z.string().min(1, "كلمة المرور مطلوبة"),
 });
 
 const registerSchema = insertUserSchema.pick({
@@ -28,10 +28,10 @@ const registerSchema = insertUserSchema.pick({
     displayName: true,
     role: true,
 }).extend({
-    username: z.string().min(3, "Username must be at least 3 characters"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    email: z.string().email("Valid email is required"),
-    displayName: z.string().min(2, "Name must be at least 2 characters"),
+    username: z.string().min(3, "يجب أن يتكون اسم المستخدم 3 أحرف على الأقل"),
+    password: z.string().min(6, "يجب أن تكون كلمة المرور 6 أحرف على الأقل"),
+    email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
+    displayName: z.string().min(2, "يجب أن يتكون الاسم حرفين على الأقل"),
 });
 
 export default function AuthPage() {

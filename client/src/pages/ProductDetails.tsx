@@ -7,7 +7,7 @@ import { useAddToCart } from "@/hooks/use-cart";
 import { useMediaVideos } from "@/hooks/use-media";
 
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, Star, ShieldCheck, Download, ShoppingCart, BookOpen, Truck, MapPin, Info, Sparkles, Palette, Music, Play, ArrowUpRight, ExternalLink, Globe, X } from "lucide-react";
+import { Loader2, Star, ShieldCheck, Download, ShoppingCart, BookOpen, Truck, MapPin, Info, Sparkles, Palette, Music, Play, ArrowUpRight, ExternalLink, Globe, X, BadgeCheck } from "lucide-react";
 import { useShippingRates } from "@/hooks/use-shipping";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -23,6 +23,9 @@ import { useProducts } from "@/hooks/use-products";
 import { useTranslation } from "react-i18next";
 import { cn, optimizeImage } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/skeleton-loader";
+import { useProductAccess } from "@/hooks/use-product-access";
+import { useLibraryStatus, useAddToLibrary } from "@/hooks/use-library";
+import { ReportDialog } from "@/components/ReportDialog";
 
 export default function ProductDetails() {
   const { t, i18n } = useTranslation();
@@ -33,7 +36,7 @@ export default function ProductDetails() {
   const [, params] = useRoute("/book/:id");
   const id = parseInt(params?.id || "0");
 
-  const { data: product, isLoading } = useProduct(id);
+  const { data: product, isLoading: productLoading } = useProduct(id);
   const { data: writer } = useUserById(product?.writerId || "");
   const { data: reviews } = useReviews(id);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -47,10 +50,19 @@ export default function ProductDetails() {
     setIsDescExpanded(false);
   }, [id]);
 
+  // Unified access check via server-side engine
+  const isOwner = user && product && user.id === (product as any).writerId;
+  const { hasAccess, reason, planName, subscriptionExpiry, creatorUsername, isLoading: accessLoading, isExpiringSoon, isSubscriptionAccess } = useProductAccess(id);
+  const { data: inLibrary, isLoading: libraryLoading } = useLibraryStatus(id);
+  const addToLibrary = useAddToLibrary();
+
+  // canAccess combines all access vectors — owner, free, purchased, subscription
+  const canAccess = hasAccess;
+
   const addToCart = useAddToCart();
 
-  if (isLoading) return <PageSkeleton />;
-  if (!product) return <div className="min-h-screen flex items-center justify-center bg-background text-white">Product not found</div>;
+  if (productLoading || accessLoading) return <PageSkeleton />;
+  if (!product) return <div className="min-h-screen flex items-center justify-center bg-background text-white">لم يتم العثور على المنتج</div>;
 
   const displayImage = selectedImage || product.coverUrl || (product as any).cover_url;
   const galleryImages = Array.from(new Set([
@@ -208,6 +220,7 @@ export default function ProductDetails() {
                         <p className="text-[8px] uppercase tracking-[0.2em] text-primary/70 font-bold mb-0.5 leading-none">{isArabic ? "بواسطة" : "WRITTEN BY"}</p>
                         <h4 className="text-xs font-bold text-foreground flex items-center gap-1 group-hover:text-primary transition-colors leading-none">
                           {writer.displayName}
+                          {writer.isVerified && <BadgeCheck className="w-3 h-3 text-primary shrink-0" />}
                           <ArrowUpRight className="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                         </h4>
                       </div>
@@ -232,7 +245,7 @@ export default function ProductDetails() {
               </div>
             )}
 
-            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4 leading-tight">{product.title}</h1>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold mb-4 leading-tight">{product.title}</h1>
             <div className="relative mb-8">
               <p className={cn(
                 "text-xl text-muted-foreground transition-all duration-500 whitespace-pre-wrap leading-relaxed",
@@ -246,7 +259,7 @@ export default function ProductDetails() {
                   className="mt-3 flex items-center gap-2 text-primary hover:text-primary/80 font-black text-sm uppercase tracking-widest transition-all group"
                 >
                   <span className="relative">
-                    {isDescExpanded ? t("common.readLess", "Read Less") : t("common.readMore", "Read More")}
+                    {isDescExpanded ? t("common.readLess", "اقرأ أقل") : t("common.readMore", "اقرأ المزيد")}
                     <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary/30 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
                   </span>
                   <div className={cn("transition-transform duration-300", isDescExpanded ? "rotate-180" : "")}>
@@ -378,13 +391,52 @@ export default function ProductDetails() {
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-4 items-center">
-                {product.type === "ebook" && (
-                  <div className="w-full flex items-center gap-2 text-[10px] text-green-500 font-bold uppercase tracking-widest mb-2 px-2">
-                    <ShieldCheck className="w-3 h-3" />
-                    {t("productDetails.digitalNote")}
+              {/* Premium Subscription Access Badge */}
+              {isSubscriptionAccess && planName && (
+                <div className="w-full relative group rounded-2xl overflow-hidden bg-gradient-to-r from-primary/20 via-primary/5 to-transparent border border-primary/20 p-4 mb-4 shadow-lg shadow-primary/5">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-primary/30" />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 shadow-inner">
+                         <Sparkles className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex flex-col text-start rtl:text-right">
+                         <span className="text-[10px] text-primary font-black uppercase tracking-widest mb-1">
+                           {t("productDetails.unlockedVia", "مفتوح عبر العضوية")}
+                         </span>
+                         <span className="text-sm font-bold text-foreground leading-none">
+                           {planName}
+                         </span>
+                      </div>
+                    </div>
+                    
+                    {subscriptionExpiry && (
+                       <div className="flex flex-col text-start sm:text-end rtl:sm:text-left sm:border-l sm:border-white/10 sm:pl-4 rtl:sm:border-l-0 rtl:sm:border-r rtl:sm:pl-0 rtl:sm:pr-4 shrink-0">
+                         <span className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 font-bold">
+                           {t("productDetails.accessEnds", "صالح حتى")}
+                         </span>
+                         <span className="text-xs font-bold text-white tabular-nums tracking-wide">
+                           {new Date(subscriptionExpiry).toLocaleDateString()}
+                         </span>
+                       </div>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
+              {isExpiringSoon && subscriptionExpiry && (
+                <div className="w-full text-[10px] text-amber-500 font-bold px-2 mb-4">
+                  ⚠ عضويتك تنتهي في {new Date(subscriptionExpiry).toLocaleDateString()} — قم بالتجديد للاحتفاظ بإمكانية الوصول
+                </div>
+              )}
+              
+              {product.type === "ebook" && (
+                <div className="w-full flex items-center gap-2 text-[10px] text-green-500 font-bold uppercase tracking-widest mb-4 px-2">
+                  <ShieldCheck className="w-3 h-3" />
+                  {t("productDetails.digitalNote")}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
                 {product.type === "promotional" ? (
                   <div className="w-full bg-primary/10 border border-primary/20 p-6 rounded-2xl text-center">
                     <p className="font-bold text-primary mb-1 uppercase tracking-widest text-sm">
@@ -394,15 +446,26 @@ export default function ProductDetails() {
                       {t("marketplace.promotionalDesc")}
                     </p>
                   </div>
-                ) : (
+                  ) : (
                   <>
-                    {product.price === 0 || product.price === 0.00 ? (
-                      <Link href={`/read/${product.id}`} className="w-full sm:w-auto">
-                        <Button className="w-full h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20 bg-green-600 hover:bg-green-700 rounded-2xl transition-all hover:scale-[1.02]">
+                    {canAccess ? (
+                      isSubscriptionAccess && !inLibrary ? (
+                        <Button 
+                          onClick={() => addToLibrary.mutate(product.id)}
+                          disabled={addToLibrary.isPending || libraryLoading}
+                          className="w-full sm:w-auto h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 rounded-2xl transition-all hover:scale-[1.02]"
+                        >
                           <BookOpen className="mr-2 w-5 h-5" />
-                          {t("productDetails.readNowFree")}
+                          {addToLibrary.isPending ? "جارٍ الإضافة..." : "أضف لمكتبتي (Add to Library)"}
                         </Button>
-                      </Link>
+                      ) : (
+                        <Link href={`/read/${product.id}`} className="w-full sm:w-auto">
+                          <Button className="w-full h-14 px-8 text-lg font-bold shadow-xl shadow-primary/20 bg-green-600 hover:bg-green-700 rounded-2xl transition-all hover:scale-[1.02]">
+                            <BookOpen className="mr-2 w-5 h-5" />
+                            {reason === 'owner' ? t("dashboard.products.editProduct", "تعديل / قراءة") : isSubscriptionAccess ? '📖 اقرأ الآن — العضوية' : t("productDetails.readNowFree")}
+                          </Button>
+                        </Link>
+                      )
                     ) : (
                       <Button
                         onClick={() => addToCart.mutate({
@@ -466,6 +529,15 @@ export default function ProductDetails() {
                     <span className="font-semibold text-foreground">{t("productDetails.fileFormat")}:</span> ZIP / PSD
                   </div>
                 </>
+              )}
+              {!isOwner && (
+                <div className="ml-auto">
+                  <ReportDialog
+                    targetType="product"
+                    targetId={product.id}
+                    targetName={product.title}
+                  />
+                </div>
               )}
             </div>
 
@@ -628,7 +700,7 @@ function ReviewForm({ productId, reviews }: { productId: number, reviews?: any[]
 
       <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-primary" />
-        {userReview ? t("productDetails.editReview", "Edit Your Review") : t("productDetails.writeReview")}
+        {userReview ? t("productDetails.editReview", "تعديل مراجعتك") : t("productDetails.writeReview")}
       </h3>
 
       <div className="space-y-6">
@@ -673,7 +745,7 @@ function ReviewForm({ productId, reviews }: { productId: number, reviews?: any[]
               disabled={createReview.isPending}
               className="w-full rounded-xl h-12 font-black shadow-xl shadow-primary/10 hover:scale-[1.02] active:scale-95 transition-all text-sm uppercase tracking-widest bg-primary text-black"
             >
-              {createReview.isPending ? t("common.processing") : (userReview ? t("productDetails.updateReview", "Update Review") : t("productDetails.submitReview"))}
+              {createReview.isPending ? t("common.processing") : (userReview ? t("productDetails.updateReview", "تحديث المراجعة") : t("productDetails.submitReview"))}
             </Button>
           </div>
         </div>
@@ -701,7 +773,7 @@ function RelatedStories({ currentProduct }: { currentProduct: any }) {
           <BookOpen size={24} />
         </div>
         <div>
-          <h2 className="text-3xl font-serif font-black text-white">{t("productDetails.moreInGenre", "More in this Universe")}</h2>
+          <h2 className="text-3xl font-serif font-black text-white">{t("productDetails.moreInGenre", "المزيد في هذا الكون")}</h2>
           <p className="text-sm text-muted-foreground uppercase tracking-[0.2em] font-bold">{currentProduct.genre}</p>
         </div>
       </div>

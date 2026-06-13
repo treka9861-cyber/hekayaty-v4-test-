@@ -77,7 +77,7 @@ export function PrivateStoreChat({ artistId, artistName }: PrivateStoreChatProps
                     className="fixed bottom-24 right-6 z-50 rounded-full shadow-2xl gap-2 h-14 px-6 border border-primary/20 backdrop-blur-md transition-all hover:scale-105 bg-primary text-primary-foreground"
                 >
                     <Lock className="w-5 h-5" />
-                    <span className="font-bold">{t('chat.private_button', 'Private Chat')}</span>
+                    <span className="font-bold">{t('chat.private_button', 'محادثة خاصة')}</span>
                 </Button>
             </SheetTrigger>
 
@@ -86,8 +86,8 @@ export function PrivateStoreChat({ artistId, artistName }: PrivateStoreChatProps
                     <div className="flex items-center justify-between">
                         <SheetTitle className="flex items-center gap-2">
                             <Lock className="w-4 h-4 text-primary" />
-                            <span>{t('chat.private_title', 'Private Chat')}</span>
-                            <span className="text-xs font-normal text-muted-foreground">with {artistName}</span>
+                            <span>{t('chat.private_title', 'محادثة خاصة')}</span>
+                            <span className="text-xs font-normal text-muted-foreground">مع {artistName}</span>
                         </SheetTitle>
                     </div>
                 </SheetHeader>
@@ -97,7 +97,7 @@ export function PrivateStoreChat({ artistId, artistName }: PrivateStoreChatProps
                         {messages.length === 0 && !isLoading && (
                             <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
                                 <User className="w-12 h-12 mb-4" />
-                                <p className="text-sm">{t('chat.private_empty', 'Start a private conversation with the artist.')}</p>
+                                <p className="text-sm">{t('chat.private_empty', 'ابدأ محادثة خاصة مع الفنان.')}</p>
                             </div>
                         )}
 
@@ -133,7 +133,7 @@ export function PrivateStoreChat({ artistId, artistName }: PrivateStoreChatProps
 
                                     {message.senderId === user.id && (
                                         <span className="text-[10px] opacity-50 mt-1">
-                                            {message.isRead ? "Read" : "Sent"}
+                                            {message.isRead ? "مقروءة" : "أرسلت"}
                                         </span>
                                     )}
                                 </div>
@@ -147,7 +147,7 @@ export function PrivateStoreChat({ artistId, artistName }: PrivateStoreChatProps
                         <Input
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder={t('chat.type_message', 'Type a private message...')}
+                            placeholder={t('chat.type_message', 'اكتب رسالة خاصة...')}
                             className="bg-black/40 border-white/10"
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         />

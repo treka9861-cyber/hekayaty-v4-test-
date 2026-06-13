@@ -88,8 +88,7 @@ export default function About() {
             <div className="relative aspect-square rounded-3xl overflow-hidden border border-white/10 group bg-white/5">
                 <img 
                   src={ourStoryImg} 
-                  className="w-full h-full object-contain transition-all duration-1000 group-hover:scale-105 brightness-110 contrast-110" 
-                  alt="Hekayaty Story" 
+                  alt="قصة حكاياتي" 
                 />
             </div>
           </motion.section>
@@ -132,8 +131,7 @@ export default function About() {
           {/* Our Vision */}
           <motion.section variants={itemVariants} className="grid md:grid-cols-2 gap-16 items-center">
              <div className="order-2 md:order-1 relative aspect-video rounded-3xl overflow-hidden border border-white/10 group">
-                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent z-10" />
-                 <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="Vision" />
+                 <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&q=80" className="w-full h-full object-cover" alt="الرؤية" />
              </div>
              <div className="order-1 md:order-2 space-y-6">
               <div className="flex items-center gap-3 text-primary">

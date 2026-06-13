@@ -39,7 +39,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
-      const url = queryKey.join("/");
+      const url = queryKey.map(k => typeof k === 'object' ? JSON.stringify(k) : k).join("/");
       
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
@@ -61,8 +61,9 @@ export const getQueryFn: <T>(options: {
       await throwIfResNotOk(res);
       const data = await res.json();
       
-      // Persist successful GET requests
-      if (url.startsWith('/api/')) {
+      // Persist successful GET requests, but skip sensitive endpoints
+      const isSensitive = url.includes('/api/user') || url.includes('/api/cart') || url.includes('/api/orders') || url.includes('/api/auth');
+      if (url.startsWith('/api/') && !isSensitive) {
         persistence.set(`query:${url}`, data).catch(console.error);
       }
       
@@ -73,10 +74,11 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
-      refetchOnWindowFocus: true,
-      staleTime: 1000 * 30, // 30 seconds stale time
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes stale time
       gcTime: 1000 * 60 * 60 * 24, // 24 hours
-      retry: 1,
+      retry: (failureCount) => failureCount < 3,
+      retryDelay: (attempt) => Math.min(attempt > 1 ? 2 ** attempt * 1000 : 1000, 30 * 1000),
     },
     mutations: {
       retry: false,

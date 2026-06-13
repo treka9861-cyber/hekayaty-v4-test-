@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useState } from "react";
 import { useAdminPrivateMessages } from "@/hooks/use-admin-system";
+import { useMakerOrders } from "@/hooks/use-physical-orders";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function Navbar({ hideNav }: { hideNav?: boolean } = {}) {
@@ -21,9 +22,12 @@ export function Navbar({ hideNav }: { hideNav?: boolean } = {}) {
   const { data: adminMessages } = useAdminPrivateMessages();
   const unreadMessagesCount = adminMessages?.filter(m => !m.isRead && m.receiverId === user?.id).length || 0;
 
+  const { data: makerOrders } = useMakerOrders();
+  const pendingOrdersCount = makerOrders?.filter((o: any) => o.fulfillmentStatus === 'pending').length || 0;
+
   const navItems = [
     { label: t("nav.marketplace"), href: "/marketplace", icon: ShoppingBag },
-    { label: t("nav.about", "Who Are We"), href: "/about", icon: Users },
+    { label: t("nav.about", "من نحن"), href: "/about", icon: Users },
     { label: t("nav.worldbuilders"), href: "/worldbuilders", icon: Palette },
   ];
 
@@ -106,10 +110,15 @@ export function Navbar({ hideNav }: { hideNav?: boolean } = {}) {
                       </Button>
                     </Link>
                   )}
-                  <Link href="/dashboard" className="hidden sm:block">
+                  <Link href="/dashboard" className="hidden sm:block relative">
                     <Button variant="ghost" size="sm" className="h-9 hover:bg-white/5 transition-all touch-target font-medium">
                       {user.role === "writer" || user.role === "artist" ? t("nav.dashboard") : t("nav.profile")}
                     </Button>
+                    {pendingOrdersCount > 0 && (user.role === "writer" || user.role === "artist") && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-lg shadow-red-500/20 animate-pulse">
+                        {pendingOrdersCount}
+                      </span>
+                    )}
                   </Link>
                   <Button
                     variant="ghost"
@@ -202,10 +211,17 @@ export function Navbar({ hideNav }: { hideNav?: boolean } = {}) {
                   <Link
                     href="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="mobile-menu-item flex items-center gap-3 rounded-lg"
+                    className="mobile-menu-item flex items-center justify-between gap-3 rounded-lg"
                   >
-                    <User className="w-5 h-5" />
-                    {user.role === "writer" || user.role === "artist" ? t("nav.dashboard") : t("nav.profile")}
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5" />
+                      {user.role === "writer" || user.role === "artist" ? t("nav.dashboard") : t("nav.profile")}
+                    </div>
+                    {pendingOrdersCount > 0 && (user.role === "writer" || user.role === "artist") && (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold animate-pulse">
+                        {pendingOrdersCount}
+                      </span>
+                    )}
                   </Link>
                   <button
                     onClick={() => {

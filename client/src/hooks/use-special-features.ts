@@ -3,10 +3,14 @@
  * Integrated with LRU Cache, IndexedDB Persistence, and Performance Core.
  */
 
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { usePerformanceQuery } from "@/lib/performance-core";
 import { persistence } from "@/lib/persistence";
 import { StoreEvent, SuccessPartner } from "@shared/special-features-schema";
+
+function usePerformanceQuery<T>(queryKey: any[], queryFn: () => Promise<T>, options?: any) {
+  return useQuery<T>({ queryKey, queryFn, ...options });
+}
 
 /**
  * FETCH ACTIVE EVENTS

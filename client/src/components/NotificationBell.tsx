@@ -49,7 +49,7 @@ export function NotificationBell() {
                     variant="ghost"
                     size="icon"
                     className="relative h-9 w-9 text-foreground hover:text-primary transition-all active:scale-95"
-                    aria-label="Open notifications"
+                    aria-label="فتح الإشعارات"
                 >
                     <Bell className="w-5 h-5" />
                     {unreadCount > 0 && (
@@ -65,7 +65,7 @@ export function NotificationBell() {
 
             <DropdownMenuContent align="end" className="w-[380px] p-0 bg-[#1a0f0a]/95 backdrop-blur-xl border-white/10 shadow-2xl">
                 <div className="flex items-center justify-between p-4 border-b border-white/10">
-                    <h3 className="font-serif text-lg font-bold text-primary">{t("notifications.title", "Notifications")}</h3>
+                    <h3 className="font-serif text-lg font-bold text-primary">{t("notifications.title", "الإشعارات")}</h3>
                     {unreadCount > 0 && (
                         <Button
                             variant="ghost"
@@ -74,7 +74,7 @@ export function NotificationBell() {
                             className="h-8 text-xs text-muted-foreground hover:text-primary transition-colors"
                         >
                             <Check className="w-3 h-3 mr-1" />
-                            {t("notifications.markAllRead", "Mark all read")}
+                            {t("notifications.markAllRead", "تعيين الكل كمقروء")}
                         </Button>
                     )}
                 </div>
@@ -85,8 +85,8 @@ export function NotificationBell() {
                             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
                                 <Bell className="w-6 h-6 text-muted-foreground/30" />
                             </div>
-                            <p className="text-muted-foreground font-medium">{t("notifications.empty", "No notifications yet")}</p>
-                            <p className="text-xs text-muted-foreground/60 mt-1">We'll let you know when something important happens.</p>
+                            <p className="text-muted-foreground font-medium">{t("notifications.empty", "لا توجد إشعارات بعد")}</p>
+                            <p className="text-xs text-muted-foreground/60 mt-1">سنعلمك عندما يحدث شيء مهم.</p>
                         </div>
                     ) : (
                         <div className="flex flex-col">
@@ -115,7 +115,7 @@ export function NotificationBell() {
                                             </p>
                                             {n.priority === 'high' && (
                                                 <Badge variant="outline" className="text-[9px] uppercase tracking-wider py-0 px-1 border-primary/30 text-primary animate-pulse">
-                                                    {t("notifications.priority.high", "High")}
+                                                    {t("notifications.priority.high", "عاجل")}
                                                 </Badge>
                                             )}
                                         </div>
@@ -140,7 +140,7 @@ export function NotificationBell() {
                 <Link href="/notifications">
                     <div className="p-3 text-center transition-colors hover:bg-white/5 cursor-pointer">
                         <span className="text-sm font-medium text-primary hover:text-primary-foreground">
-                            {t("notifications.viewAll", "View all notifications")}
+                            {t("notifications.viewAll", "عرض جميع الإشعارات")}
                         </span>
                     </div>
                 </Link>

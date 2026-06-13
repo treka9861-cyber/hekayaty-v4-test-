@@ -110,7 +110,7 @@ export function StoreChat({ storeId, storeName }: StoreChatProps) {
                     <div className="flex items-center justify-between">
                         <SheetTitle className="flex items-center gap-2">
                             <MessageCircle className="w-5 h-5 text-primary" />
-                            <span>{t('chat.title', 'Store Chat')}</span>
+                            <span>{t('chat.title', 'محادثة المتجر')}</span>
                             <span className="text-xs font-normal text-muted-foreground">/ {storeName}</span>
                         </SheetTitle>
                     </div>
@@ -121,7 +121,7 @@ export function StoreChat({ storeId, storeName }: StoreChatProps) {
                     <div className="bg-primary/10 p-3 border-b border-primary/20 flex items-start gap-3 relative animate-in fade-in slide-in-from-top-2">
                         <Pin className="w-4 h-4 text-primary mt-1 shrink-0" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">{t('chat.pinned', 'Pinned Message')}</p>
+                            <p className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">{t('chat.pinned', 'رسالة مثبتة')}</p>
                             <p className="text-sm line-clamp-2">{pinnedMessage.content}</p>
                         </div>
                         {isOwner && (
@@ -142,7 +142,7 @@ export function StoreChat({ storeId, storeName }: StoreChatProps) {
                         {messages.length === 0 && !isLoading && (
                             <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
                                 <MessageCircle className="w-12 h-12 mb-4" />
-                                <p className="text-sm">{t('chat.empty', 'No messages yet. Start the conversation!')}</p>
+                                <p className="text-sm">{t('chat.empty', 'لا توجد رسائل بعد. ابدأ المحادثة!')}</p>
                             </div>
                         )}
 
@@ -166,14 +166,14 @@ export function StoreChat({ storeId, storeName }: StoreChatProps) {
                 <div className="p-4 border-t border-white/10 bg-black/20">
                     {!user ? (
                         <p className="text-center text-sm text-muted-foreground p-2">
-                            {t('chat.guestNote', 'Please log in to participate in the conversation.')}
+                            {t('chat.guestNote', 'يرجى تسجيل الدخول للمشاركة في المحادثة.')}
                         </p>
                     ) : (
                         <div className="space-y-3">
                             {replyTo && (
                                 <div className="flex items-center justify-between bg-muted/50 p-2 rounded-lg border-l-2 border-primary text-xs animate-in slide-in-from-bottom-2">
                                     <div className="flex-1 truncate mr-2">
-                                        <span className="font-bold text-primary">Reply to {replyTo.sender?.display_name}: </span>
+                                        <span className="font-bold text-primary">الرد على {replyTo.sender?.display_name}: </span>
                                         <span className="opacity-70">{replyTo.content}</span>
                                     </div>
                                     <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => setReplyTo(null)}>
@@ -186,7 +186,7 @@ export function StoreChat({ storeId, storeName }: StoreChatProps) {
                                 <Input
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder={t('chat.placeholder', 'Say something magical...')}
+                                    placeholder={t('chat.placeholder', 'قل شيئاً سحرياً...')}
                                     className="bg-black/40 border-white/10"
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                 />
@@ -209,6 +209,7 @@ function MessageItem({
     onReply,
     onDelete,
     onPin,
+    onScrollToOriginal,
     currentLocale
 }: {
     message: ChatMessage;
@@ -268,16 +269,16 @@ function MessageItem({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align={isOwn ? 'end' : 'start'}>
                                 <DropdownMenuItem onClick={onReply} className="gap-2">
-                                    <Reply className="w-4 h-4" /> {t('chat.actions.reply', 'Reply')}
+                                    <Reply className="w-4 h-4" /> {t('chat.actions.reply', 'رد')}
                                 </DropdownMenuItem>
                                 {isOwner && (
                                     <DropdownMenuItem onClick={onPin} className="gap-2 text-primary">
-                                        <Pin className="w-4 h-4" /> {t('chat.actions.pin', 'Pin')}
+                                        <Pin className="w-4 h-4" /> {t('chat.actions.pin', 'تثبيت')}
                                     </DropdownMenuItem>
                                 )}
                                 {(isOwn || isOwner) && (
                                     <DropdownMenuItem onClick={onDelete} className="gap-2 text-destructive">
-                                        <Trash2 className="w-4 h-4" /> {t('chat.actions.delete', 'Delete')}
+                                        <Trash2 className="w-4 h-4" /> {t('chat.actions.delete', 'حذف')}
                                     </DropdownMenuItem>
                                 )}
                             </DropdownMenuContent>

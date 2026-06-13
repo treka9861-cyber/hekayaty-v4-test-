@@ -11,7 +11,8 @@ import {
     Users,
     ChevronLeft,
     ChevronRight,
-    Smile
+    Smile,
+    BadgeCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,10 +136,10 @@ export function GlobalChat() {
                                     <Users className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h2 className="font-serif font-bold text-lg">{t('chat.global.title', 'Community Chat')}</h2>
+                                    <h2 className="font-serif font-bold text-lg">{t('chat.global.title', 'ملتقى الحكواتية')}</h2>
                                     <div className="flex items-center gap-2">
                                         <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{t('chat.global.live', 'Live Universe')}</span>
+                                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{t('chat.global.live', 'الكون المباشر')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -160,6 +161,9 @@ export function GlobalChat() {
                                         <div className={cn("flex flex-col max-w-[80%]", msg.sender_id === user?.id ? "items-end" : "items-start")}>
                                             <div className="flex items-center gap-2 mb-1 px-1">
                                                 <span className="text-[10px] font-bold text-primary/80">{msg.sender?.display_name}</span>
+                                                {msg.sender?.is_verified && (
+                                                    <BadgeCheck className="w-3 h-3 text-primary shrink-0" aria-label="Verified Author" />
+                                                )}
                                                 <span className="text-[8px] text-muted-foreground">{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: currentLocale })}</span>
                                             </div>
 
@@ -189,7 +193,7 @@ export function GlobalChat() {
                                                                 setSelectedMessage(msg.id);
                                                                 setIsReportOpen(true);
                                                             }}>
-                                                                <Flag className="w-4 h-4" /> {t('chat.actions.report', 'Report')}
+                                                                <Flag className="w-4 h-4" /> {t('chat.actions.report', 'إبلاغ عن محتوى')}
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -200,7 +204,7 @@ export function GlobalChat() {
                                 ))}
                                 {isLoading && (
                                     <div className="flex justify-center py-4">
-                                        <span className="text-xs text-muted-foreground animate-pulse">Loading the universe...</span>
+                                        <span className="text-xs text-muted-foreground animate-pulse">جارِ تحميل العالم...</span>
                                     </div>
                                 )}
                             </div>
@@ -212,7 +216,7 @@ export function GlobalChat() {
                                 <Input
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder={user ? t('chat.global.placeholder', 'Say hello...') : t('chat.global.loginToChat', 'Login to chat')}
+                                    placeholder={user ? t('chat.global.placeholder', 'حدث الكون بشيء...') : t('chat.global.loginToChat', 'سجل دخولك للمشاركة')}
                                     disabled={!user}
                                     className="bg-black/20 border-white/10 rounded-xl"
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
@@ -228,7 +232,7 @@ export function GlobalChat() {
                             </div>
                             {!user && (
                                 <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                                    Join the community to participate in the discussion.
+                                    انضم إلى المجتمع للمشاركة في النقاش.
                                 </p>
                             )}
                         </div>
@@ -240,23 +244,23 @@ export function GlobalChat() {
             <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{t('chat.report.title', 'Report Content')}</DialogTitle>
+                        <DialogTitle>{t('chat.report.title', 'مجتمع آمن')}</DialogTitle>
                         <DialogDescription>
-                            {t('chat.report.description', 'Help us maintain a safe community. Why are you reporting this message?')}
+                            {t('chat.report.description', 'ساعدنا في الحفاظ على أمان المجتمع. لماذا تبلغ عن هذه الرسالة؟')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
                         <Input
                             value={reportReason}
                             onChange={(e) => setReportReason(e.target.value)}
-                            placeholder={t('chat.report.reasonPlaceholder', 'e.g. Hate speech, Spam, Harassment...')}
+                            placeholder={t('chat.report.reasonPlaceholder', 'مثلاً: خطاب كراهية، سبام، تحرش...')}
                             autoFocus
                         />
                     </div>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsReportOpen(false)}>{t('common.cancel')}</Button>
                         <Button variant="destructive" onClick={handleReport} disabled={!reportReason.trim()}>
-                            {t('chat.actions.confirmReport', 'Submit Report')}
+                            {t('chat.actions.confirmReport', 'إرسال البلاغ')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

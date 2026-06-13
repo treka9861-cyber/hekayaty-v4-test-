@@ -28,8 +28,8 @@ export function SellerOrders() {
         return (
             <div className="text-center py-12 glass-card rounded-xl">
                 <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">No orders yet</h3>
-                <p className="text-muted-foreground">When you make sales, they will appear here.</p>
+                <h3 className="text-lg font-semibold">لا توجد طلبات بعد</h3>
+                <p className="text-muted-foreground">عندما تقوم بمبيعات، ستظهر هنا.</p>
             </div>
         );
     }
@@ -81,24 +81,24 @@ export function SellerOrders() {
                     <Card key={order.id} className="glass-card overflow-hidden border-border/50">
                         <div className="bg-muted/30 p-4 flex flex-wrap gap-4 justify-between items-center border-b border-border/50">
                             <div className="flex items-center gap-4">
-                                <Badge variant="outline" className="bg-background">Order #{order.id}</Badge>
+                                <Badge variant="outline" className="bg-background">طلب #{order.id}</Badge>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Clock className="w-4 h-4" />
                                     {format(new Date(order.date), "MMM d, yyyy")}
                                 </div>
                                 <div className="text-sm font-medium">
-                                    Buyer: {order.customer?.display_name || order.customer?.email || "Guest"}
+                                    المشتري: {order.customer?.display_name || order.customer?.email || "زائر"}
                                 </div>
                             </div>
                             <div>
                                 {isFullyShipped ? (
                                     <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20">
                                         <CheckCircle className="w-3 h-3 mr-1" />
-                                        Completed
+                                        مكتمل
                                     </Badge>
                                 ) : (
                                     <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20">
-                                        Action Required
+                                        يتطلب إجراء
                                     </Badge>
                                 )}
                             </div>
@@ -107,7 +107,7 @@ export function SellerOrders() {
                         <CardContent className="p-6">
                             <div className="grid md:grid-cols-3 gap-8">
                                 <div className="md:col-span-2 space-y-4">
-                                    <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-2">Items</h4>
+                                    <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-2">العناصر</h4>
                                     {order.items.map((item) => (
                                         <div key={item.id} className="flex gap-4 items-center bg-background/50 p-3 rounded-lg border border-border/50">
                                             <div className="w-12 h-16 bg-muted rounded overflow-hidden shrink-0">
@@ -116,14 +116,14 @@ export function SellerOrders() {
                                             <div className="flex-1">
                                                 <h5 className="font-medium truncate">{item.product?.title}</h5>
                                                 <div className="flex items-center gap-3 mt-1">
-                                                    <span className="text-sm text-muted-foreground">Qty: {item.quantity}</span>
+                                                    <span className="text-sm text-muted-foreground">الكمية: {item.quantity}</span>
                                                     <div className="flex items-center gap-2">
                                                         {item.fulfillment_status === 'shipped' ? (
                                                             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center">
-                                                                <Truck className="w-3 h-3 mr-1" /> Shipped
+                                                                <Truck className="w-3 h-3 mr-1" /> تم الشحن
                                                             </span>
                                                         ) : (
-                                                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Pending</span>
+                                                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">قيد الانتظار</span>
                                                         )}
                                                         {item.tracking_number && (
                                                             <span className="text-xs text-muted-foreground font-mono">
@@ -138,7 +138,7 @@ export function SellerOrders() {
                                 </div>
 
                                 <div className="space-y-4">
-                                    <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-2">Shipping Details</h4>
+                                    <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-2">تفاصيل الشحن</h4>
                                     {order.address ? (
                                         <div className="text-sm space-y-1">
                                             <div className="flex items-start gap-2">
@@ -152,7 +152,7 @@ export function SellerOrders() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground italic">No shipping address (Digital Order?)</p>
+                                        <p className="text-sm text-muted-foreground italic">لا يوجد عنوان شحن (طلب رقمي؟)</p>
                                     )}
 
                                     {!isFullyShipped && (
@@ -162,7 +162,7 @@ export function SellerOrders() {
                                                 onClick={() => handleOpenFulfill(order.id, pendingItems)}
                                             >
                                                 <Package className="w-4 h-4" />
-                                                Fulfill Items
+                                                شحن العناصر
                                             </Button>
                                         </div>
                                     )}
@@ -176,15 +176,15 @@ export function SellerOrders() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Fulfill Order</DialogTitle>
+                        <DialogTitle>شحن الطلب</DialogTitle>
                         <DialogDescription>
-                            Enter tracking information for the selected items.
+                            أدخل معلومات التتبع للعناصر المحددة.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
-                            <Label>Select items to fulfill</Label>
+                            <Label>حدد العناصر المراد شحنها</Label>
                             {selectedOrder && ordersMap.get(selectedOrder)?.filter(i => i.fulfillment_status === 'pending').map(item => (
                                 <div key={item.id} className="flex items-center space-x-2 border p-2 rounded">
                                     <Checkbox
@@ -200,9 +200,9 @@ export function SellerOrders() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Tracking Number</Label>
+                            <Label>رقم التتبع</Label>
                             <Input
-                                placeholder="e.g. TRK123456789"
+                                placeholder="مثال: TRK123456789"
                                 value={trackingNumber}
                                 onChange={(e) => setTrackingNumber(e.target.value)}
                             />
@@ -210,9 +210,9 @@ export function SellerOrders() {
                     </div>
 
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                        <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>إلغاء</Button>
                         <Button onClick={handleFulfillSubmit} disabled={fulfillMutation.isPending || selectedItems.length === 0}>
-                            {fulfillMutation.isPending ? "Updating..." : "Confirm Shipment"}
+                            {fulfillMutation.isPending ? "جاري التحديث..." : "تأكيد الشحن"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

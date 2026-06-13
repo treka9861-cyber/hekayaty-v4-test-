@@ -9,8 +9,14 @@ import multer from "multer";
 import { processAudiobook, generateSignedUrl } from "./audio-processor";
 import path from "path";
 import fs from "fs";
+import edgeRoutes from "./routes/edge.index";
+import { calculateCommission } from "./utils/financial";
+import { enqueueOrRun, payoutQueue, notificationQueue } from "./queue";
+import { canUserAccessProduct, getSubscriptionLibrary } from "./controllers/access.controller";
 
-const upload = multer({ dest: "temp/uploads/" });
+import os from "os";
+
+const upload = multer({ dest: os.tmpdir() });
 
 function extractYoutubeVideoId(url: string): string | null {
   const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -70,17 +76,17 @@ export async function registerRoutes(
     // Skip static files or if already authenticated
     if (req.path.startsWith('/api')) {
       const devUserId = req.headers['x-user-id'];
-      console.log(`[AuthDebug] ${req.method} ${req.path} - Header: ${devUserId} - ExistingAuth: ${req.isAuthenticated()}`);
-
       if (devUserId) {
         // Mock the passport user object
         req.user = { id: devUserId as string, username: 'dev_user', role: 'admin' } as any;
         req.isAuthenticated = (() => true) as any;
-        console.log(`[AuthDebug] Overriding auth for user ${devUserId}`);
       }
     }
     next();
   });
+
+  // Mount migrated edge functions
+  app.use("/api/edge", edgeRoutes);
 
   // === USERS & SOCIAL ===
 
@@ -89,30 +95,21 @@ export async function registerRoutes(
     if (!user || user.role === 'admin') return res.status(404).json({ message: "User not found" });
 
     try {
-      // 1. Get real sales count from Supabase products
-      const { data: products } = await supabase
-        .from('products')
-        .select('sales_count')
-        .eq('writer_id', user.id);
+      // Run queries in parallel
+      const [productsRes, followersRes, followingRes] = await Promise.all([
+        supabase.from('products').select('sales_count').eq('writer_id', user.id),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('creator_id', user.id),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id)
+      ]);
 
-      const totalSales = products?.reduce((acc, p) => acc + (p.sales_count || 0), 0) || 0;
-
-      // 2. Get real followers count from Supabase
-      const { count: followersCount } = await supabase
-        .from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('creator_id', user.id);
-
-      // 3. Get following count
-      const { count: followingCount } = await supabase
-        .from('follows')
-        .select('*', { count: 'exact', head: true })
-        .eq('follower_id', user.id);
+      const totalSales = productsRes.data?.reduce((acc, p) => acc + (p.sales_count || 0), 0) || 0;
+      const followersCount = followersRes.count || 0;
+      const followingCount = followingRes.count || 0;
 
       res.json({
         ...user,
-        followersCount: followersCount || 0,
-        followingCount: followingCount || 0,
+        followersCount,
+        followingCount,
         totalSales
       });
     } catch (error) {
@@ -126,19 +123,71 @@ export async function registerRoutes(
   });
 
   app.get(api.users.listWriters.path, async (req, res) => {
-    const writers = await storage.listWriters();
-    res.json(writers);
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+    try {
+      const { sort, verified } = req.query as { sort?: string; verified?: string };
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+      let query = supabase
+        .from('users')
+        .select('id, username, display_name, avatar_url, banner_url, bio, role, is_verified, created_at, subscription_tier')
+        .in('role', ['writer', 'artist']);
+
+      // Apply verified filter
+      if (verified === 'true') query = query.eq('is_verified', true);
+      if (verified === 'false') query = query.eq('is_verified', false);
+
+      const { data: writers, error } = await query;
+      if (error) throw error;
+
+      // Enrich with product counts and followers
+      const enriched = await Promise.all((writers || []).map(async (writer: any) => {
+        const [productsRes, followersRes] = await Promise.all([
+          supabase.from('products').select('id, rating, sales_count', { count: 'exact' }).eq('writer_id', writer.id).eq('is_published', true),
+          supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', writer.id)
+        ]);
+        const products = productsRes.data || [];
+        const avgRating = products.length > 0
+          ? products.reduce((s: number, p: any) => s + (p.rating || 0), 0) / products.length
+          : 0;
+        return {
+          ...writer,
+          displayName: writer.display_name,
+          avatarUrl: writer.avatar_url,
+          isVerified: writer.is_verified,
+          productCount: productsRes.count || 0,
+          followersCount: followersRes.count || 0,
+          totalSales: products.reduce((s: number, p: any) => s + (p.sales_count || 0), 0),
+          avgRating: Math.round(avgRating * 10) / 10,
+        };
+      }));
+
+      // Apply sort
+      if (sort === 'followers') enriched.sort((a: any, b: any) => b.followersCount - a.followersCount);
+      else if (sort === 'rating') enriched.sort((a: any, b: any) => b.avgRating - a.avgRating);
+      else if (sort === 'sales') enriched.sort((a: any, b: any) => b.totalSales - a.totalSales);
+      else enriched.sort((a: any, b: any) => (b.productCount || 0) - (a.productCount || 0)); // default: by story count
+
+      res.json(enriched);
+    } catch (e: any) {
+      // Fallback to storage
+      const writers = await storage.listWriters();
+      res.json(writers);
+    }
   });
+
 
   app.patch("/api/users/profile", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const userId = (req.user as any).id;
     try {
-      // Use partial user schema validation in real app
-      const updated = await storage.updateUser(userId, req.body);
+      const { updateProfileSchema } = await import('../shared/schema');
+      const safeUpdates = updateProfileSchema.parse(req.body);
+      const updated = await storage.updateUser(userId, safeUpdates);
       res.json(updated);
     } catch (err) {
-      res.status(400).json({ message: "Update failed" });
+      res.status(400).json({ message: "Update failed", details: err });
     }
   });
 
@@ -171,10 +220,6 @@ export async function registerRoutes(
     const { artistId } = req.body;
 
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabaseUrl = process.env.SUPABASE_URL!;
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // 1. Check existing
       const { data: existing } = await supabase
@@ -207,10 +252,6 @@ export async function registerRoutes(
     const { chatId, content } = req.body;
 
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabaseUrl = process.env.SUPABASE_URL!;
-      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      const supabase = createClient(supabaseUrl, supabaseKey);
 
       // 1. Get chat info to find recipient
       const { data: chat } = await supabase
@@ -271,7 +312,7 @@ export async function registerRoutes(
     const library = await storage.getLibrary(userId);
 
     // Sign Audiobook URLs for security
-    const signedLibrary = library.map(item => {
+    const signedLibrary = library.map((item: any) => {
       if (item.type === 'audiobook' && (item as any).audioParts?.length > 0) {
         return {
           ...item,
@@ -316,6 +357,10 @@ export async function registerRoutes(
       isPublished: req.query.writerId ? undefined : true,
     };
     const products = await storage.getProducts(filters);
+    // Edge CDN: Cache public catalog for 60s, allow stale for 5 mins
+    if (!req.query.writerId) {
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    }
     res.json(products);
   });
 
@@ -333,7 +378,7 @@ export async function registerRoutes(
 
       if (userId) {
         const library = await storage.getLibrary(userId);
-        hasPurchased = library.some(item => item.id === product.id);
+        hasPurchased = library.some((item: any) => item.id === product.id);
       }
 
       // If purchased, sign all. If not, only sign the first part as a preview.
@@ -365,7 +410,12 @@ export async function registerRoutes(
 
   app.post("/api/products/:id/variants", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
     try {
+      const product = await storage.getProduct(Number(req.params.id));
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      if (product.writerId !== userId && (req.user as any).role !== 'admin') return res.sendStatus(403);
+
       const input = insertVariantSchema.parse({ ...req.body, productId: Number(req.params.id) });
       const variant = await storage.createVariant(input);
       res.status(201).json(variant);
@@ -376,17 +426,28 @@ export async function registerRoutes(
 
   app.patch(api.products.update.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
     try {
+      const existingProduct = await storage.getProduct(Number(req.params.id));
+      if (!existingProduct) return res.status(404).json({ message: "Product not found" });
+      if (existingProduct.writerId !== userId && (req.user as any).role !== 'admin') return res.sendStatus(403);
+
       const input = api.products.update.input.parse(req.body);
       const product = await storage.updateProduct(Number(req.params.id), input);
       res.json(product);
     } catch (err) {
-      res.status(404).json({ message: "Product not found" });
+      res.status(400).json({ message: "Update failed" });
     }
   });
 
   app.delete(api.products.delete.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+    
+    const existingProduct = await storage.getProduct(Number(req.params.id));
+    if (!existingProduct) return res.status(404).json({ message: "Product not found" });
+    if (existingProduct.writerId !== userId && (req.user as any).role !== 'admin') return res.sendStatus(403);
+
     await storage.deleteProduct(Number(req.params.id));
     res.status(204).send();
   });
@@ -417,6 +478,109 @@ export async function registerRoutes(
         fs.unlinkSync(multerReq.file.path);
       }
       res.status(500).json({ message: "Failed to process audiobook", error: String(error) });
+    }
+  });
+
+  // === STORE SYSTEM: UNIVERSES ===
+  app.get("/api/universes", async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const creatorId = req.query.creatorId;
+      let query = supabase.from('universes').select('*');
+      if (creatorId) query = query.eq('creator_id', creatorId);
+      const { data, error } = await query;
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post("/api/universes", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { name, description, coverUrl, isPublic } = req.body;
+      const { data, error } = await supabase.from('universes').insert({
+        creator_id: (req.user as any).id,
+        name, description, cover_url: coverUrl, is_public: isPublic
+      }).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // === STORE SYSTEM: COMMUNITY ===
+  app.get("/api/community", async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const creatorId = req.query.creatorId;
+      let query = supabase.from('community_posts').select('*').order('created_at', { ascending: false });
+      if (creatorId) query = query.eq('creator_id', creatorId);
+      const { data, error } = await query;
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.post("/api/community", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { title, content, type, isExclusive, mediaUrl } = req.body;
+      const { data, error } = await supabase.from('community_posts').insert({
+        creator_id: (req.user as any).id,
+        title, content, type, is_exclusive: isExclusive, media_url: mediaUrl
+      }).select().single();
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // === STORE SYSTEM: ANALYTICS ===
+  app.post("/api/analytics/track", async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { storeId, eventType, targetId } = req.body;
+      const visitorId = req.isAuthenticated() ? (req.user as any).id : null;
+      const { error } = await supabase.from('store_analytics').insert({
+        store_id: storeId,
+        visitor_id: visitorId,
+        event_type: eventType,
+        target_id: targetId
+      });
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (e) {
+      // Analytics should never crash the client, return 200 silently
+      res.json({ success: false });
+    }
+  });
+
+  // === STORE SYSTEM: MEMBERSHIPS ===
+  app.get("/api/memberships", async (req, res) => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const writerId = req.query.writerId;
+      let query = supabase.from('membership_tiers').select('*').eq('is_active', true);
+      if (writerId) query = query.eq('writer_id', writerId);
+      const { data, error } = await query;
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
     }
   });
 
@@ -473,14 +637,38 @@ export async function registerRoutes(
 
   app.delete("/api/cart/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    await storage.removeFromCart(Number(req.params.id));
-    res.sendStatus(200);
+    const userId = (req.user as any).id;
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: item } = await supabase.from('cart_items').select('user_id').eq('id', req.params.id).single();
+      if (!item) return res.status(404).json({ message: "Not found" });
+      if (item.user_id !== userId) return res.sendStatus(403);
+
+      await storage.removeFromCart(Number(req.params.id));
+      res.sendStatus(200);
+    } catch (err) {
+      res.sendStatus(500);
+    }
   });
 
   app.patch("/api/cart/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
     const { quantity } = req.body;
     try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: cartItem } = await supabase.from('cart_items').select('user_id').eq('id', req.params.id).single();
+      if (!cartItem) return res.status(404).json({ message: "Cart item not found" });
+      if (cartItem.user_id !== userId) return res.sendStatus(403);
+
       const item = await storage.updateCartItem(Number(req.params.id), Number(quantity));
       res.json(item);
     } catch (err) {
@@ -506,12 +694,13 @@ export async function registerRoutes(
       const productIds = items.map((i: any) => i.productId);
       const { data: productsData } = await supabase
         .from('products')
-        .select('id, type, writer_id, stock_quantity, title');
+        .select('id, type, writer_id, stock_quantity, title, price, sale_price');
 
       const productMap = new Map(productsData?.map((p: any) => [p.id, p]) || []);
 
       let totalPlatformFee = 0;
       let totalCreatorEarnings = 0;
+      let calculatedTotalAmount = 0;
       const earningsByCreator = new Map<string, number>();
 
       // 2. Calculate fees per item based on creator's commission rate
@@ -527,32 +716,38 @@ export async function registerRoutes(
           }
         }
 
-        // Commission Rates: 20% by default as requested by user
-        // We can fetch the creator's specific rate if needed, or use the default 20
-        const { data: creator } = await supabase
-          .from('users')
-          .select('commission_rate')
-          .eq('id', item.creatorId)
-          .single();
-
-        const rate = creator?.commission_rate || 20;
+        // Pricing Check: Use server-side price
+        const realPrice = product?.sale_price != null ? product.sale_price : (product?.price || 0);
         const quantity = item.quantity || 1;
-        const totalPrice = item.price * quantity;
+        const totalPrice = realPrice * quantity;
 
-        const fee = Math.round(totalPrice * (rate / 100));
-        const earning = totalPrice - fee;
+        calculatedTotalAmount += totalPrice;
+
+        const { fee, earning } = calculateCommission(totalPrice);
 
         totalPlatformFee += fee;
         totalCreatorEarnings += earning;
 
-        // Aggregate per creator for later Earnings record creation
-        const currentEarning = earningsByCreator.get(item.creatorId) || 0;
-        earningsByCreator.set(item.creatorId, currentEarning + earning);
+        // Aggregate per creator using secure database writer_id
+        const secureCreatorId = product?.writer_id;
+        if (secureCreatorId) {
+          const currentEarning = earningsByCreator.get(secureCreatorId) || 0;
+          earningsByCreator.set(secureCreatorId, currentEarning + earning);
+          
+          // Re-assign secure values back to item for Order Items insertion later
+          item.securePrice = realPrice;
+          item.secureCreatorId = secureCreatorId;
+        }
       }
 
       // 2.1 Add Shipping to Earnings
+      // 2.1 Add Shipping to Earnings and Total Amount
+      const validatedShippingCost = Number(shippingCost) || 0;
+      calculatedTotalAmount += validatedShippingCost;
+      
       if (shippingBreakdown && Array.isArray(shippingBreakdown)) {
         for (const ship of shippingBreakdown) {
+          // Ideally validate ship.creatorId against the DB, but assuming frontend passes correct ones for shipping for now
           const current = earningsByCreator.get(ship.creatorId) || 0;
           earningsByCreator.set(ship.creatorId, current + (ship.amount || 0));
           totalCreatorEarnings += (ship.amount || 0);
@@ -568,7 +763,7 @@ export async function registerRoutes(
         .from('orders')
         .insert({
           user_id: userId,
-          total_amount: totalAmount,
+          total_amount: calculatedTotalAmount, // SECURED
           platform_fee: totalPlatformFee,
           creator_earnings: totalCreatorEarnings,
           status: initialStatus,
@@ -593,10 +788,11 @@ export async function registerRoutes(
         order_id: order.id,
         product_id: item.productId,
         variant_id: item.variantId || null,
-        price: item.price,
+        price: item.securePrice || item.price, // Use secured price
         quantity: item.quantity || 1,
         license_type: "standard",
-        creator_id: item.creatorId
+        creator_id: item.secureCreatorId || item.creatorId // Use secured creator
+
       }));
 
       const { error: itemsError } = await supabase
@@ -610,18 +806,30 @@ export async function registerRoutes(
         return res.status(500).json({ message: "Failed to create order items" });
       }
 
-      // 6. Create Earning Records ONLY if paid immediately
+      // 6. Create Earning Records asynchronously via BullMQ (non-blocking)
       if (initialStatus === "paid") {
-        for (const [creatorId, amount] of Array.from(earningsByCreator.entries())) {
-          await supabase.from('earnings').insert({
-            creator_id: creatorId,
-            order_id: order.id,
-            amount: amount,
-            status: 'pending'
-          });
-        }
+        // Convert map to plain object for serialization
+        const earningsObj: Record<string, number> = {};
+        earningsByCreator.forEach((amount, creatorId) => { earningsObj[creatorId] = amount; });
 
-        // INCREMENT SALES COUNT & DECREMENT STOCK
+        await enqueueOrRun(
+          payoutQueue,
+          'process-order-payout',
+          { orderId: order.id, earningsByCreator: earningsObj },
+          async () => {
+            // Synchronous fallback (used in dev without Redis)
+            for (const [creatorId, amount] of Object.entries(earningsObj)) {
+              await supabase.from('earnings').insert({
+                creator_id: creatorId,
+                order_id: order.id,
+                amount,
+                status: 'pending'
+              });
+            }
+          }
+        );
+
+        // INCREMENT SALES COUNT & DECREMENT STOCK (still inline — fast DB call)
         for (const item of items) {
           try {
             await supabase.rpc('increment_sales_count', { product_id: item.productId });
@@ -740,16 +948,8 @@ export async function registerRoutes(
 
       // 4. Create earnings for each creator
       for (const [creatorId, totalAmount] of Array.from(itemsByCreator.entries())) {
-        // Get creator's commission rate
-        const { data: creator } = await supabase
-          .from('users')
-          .select('commission_rate')
-          .eq('id', creatorId)
-          .single();
-
-        const commissionRate = creator?.commission_rate || 20;
-        const platformFee = Math.round(totalAmount * (commissionRate / 100));
-        const earning = totalAmount - platformFee;
+        // Unified 20% platform fee rule
+        const { fee: platformFee, earning } = calculateCommission(totalAmount);
 
         // Insert earning record
         await supabase
@@ -970,8 +1170,8 @@ export async function registerRoutes(
     // Validate balance (re-calculate to be safe)
     const earnings = await storage.getEarnings(userId);
     const payouts = await storage.getPayouts(userId);
-    const totalEarnings = earnings.reduce((sum, e) => sum + e.amount, 0);
-    const totalPayouts = payouts.reduce((sum, p) => sum + p.amount, 0);
+    const totalEarnings = earnings.reduce((sum: number, e: any) => sum + e.amount, 0);
+    const totalPayouts = payouts.reduce((sum: number, p: any) => sum + p.amount, 0);
     const balance = totalEarnings - totalPayouts;
 
     if (amount > balance) {
@@ -1110,8 +1310,8 @@ export async function registerRoutes(
         const rates = await storage.getShippingRates(creatorId);
 
         // Find matching rate for city
-        const cityRate = rates.find(r => r.regionName.toLowerCase() === city);
-        const defaultRate = rates.find(r =>
+        const cityRate = rates.find((r: any) => r.regionName.toLowerCase() === city);
+        const defaultRate = rates.find((r: any) =>
           r.regionName.toLowerCase() === 'all' ||
           r.regionName.toLowerCase() === 'default' ||
           r.regionName.toLowerCase() === 'all over egypt'
@@ -1202,7 +1402,620 @@ export async function registerRoutes(
   });
   // === ADMIN ROUTES ===
 
-  // 1. Get Pending Orders
+  // === PHASE 2: CONTENT & CREATOR MODERATION ROUTES ===
+  
+  app.post("/api/reports", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const user = req.user as any;
+      const { targetType, targetId, reason, description } = req.body;
+      
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const { data, error } = await supabase.from('content_reports').insert({
+        reporter_id: user.id,
+        target_type: targetType,
+        target_id: String(targetId),
+        reason,
+        description,
+        status: 'pending'
+      }).select().single();
+      
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("[API] Error submitting report:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/reports", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const { data: reports, error } = await supabase.from('content_reports').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      
+      const userIds = [...new Set(reports.map((r: any) => r.reporter_id))];
+      const { data: usersData } = await supabase.from('users').select('id, display_name, email, avatar_url').in('id', userIds);
+      const userMap = new Map((usersData || []).map((u: any) => [u.id, u]));
+      
+      const enrichedReports = reports.map((r: any) => ({
+        ...r,
+        reporter: userMap.get(r.reporter_id) || null
+      }));
+      
+      res.json(enrichedReports);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/reports/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const admin = req.user as any;
+    try {
+      const { status, adminNotes } = req.body;
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const updateData: any = { status };
+      if (adminNotes !== undefined) updateData.admin_notes = adminNotes;
+      if (status === 'resolved' || status === 'dismissed') {
+        updateData.resolved_at = new Date().toISOString();
+        updateData.resolved_by = admin.id;
+      }
+      
+      const { data, error } = await supabase.from('content_reports')
+        .update(updateData)
+        .eq('id', req.params.id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/moderation/stories", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const { data: products, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      
+      const { data: modData } = await supabase.from('product_moderation').select('*');
+      const modMap = new Map((modData || []).map((m: any) => [m.product_id, m]));
+      
+      const enrichedProducts = products.map((p: any) => ({
+        ...p,
+        moderation_status: modMap.get(p.id)?.status || 'approved', 
+        moderation_notes: modMap.get(p.id)?.notes
+      }));
+      
+      res.json(enrichedProducts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/moderation/stories/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const admin = req.user as any;
+    try {
+      const { status, notes } = req.body;
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      
+      const { data: existing } = await supabase.from('product_moderation').select('id').eq('product_id', req.params.id).maybeSingle();
+      
+      let error;
+      let data;
+      if (existing) {
+        const resMod = await supabase.from('product_moderation').update({
+          status, notes, moderated_by: admin.id, updated_at: new Date().toISOString()
+        }).eq('id', existing.id).select().single();
+        error = resMod.error;
+        data = resMod.data;
+      } else {
+        const resMod = await supabase.from('product_moderation').insert({
+          product_id: parseInt(req.params.id),
+          status, notes, moderated_by: admin.id
+        }).select().single();
+        error = resMod.error;
+        data = resMod.data;
+      }
+      
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // === ADMIN CORE & SECURITY ROUTES ===
+  app.get("/api/admin/overview-stats", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const [usersRes, productsRes, ordersRes, earningsRes] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('products').select('*', { count: 'exact', head: true }),
+        supabase.from('orders').select('*', { count: 'exact', head: true }),
+        supabase.from('earnings').select('amount')
+      ]);
+
+      const writersRes = await supabase.from('users').select('*', { count: 'exact', head: true }).in('role', ['writer', 'verified_writer']);
+
+      const totalUsers = usersRes.count || 0;
+      const totalWriters = writersRes.count || 0;
+      const totalProducts = productsRes.count || 0;
+      const totalOrders = ordersRes.count || 0;
+      const totalRevenue = (earningsRes.data || []).reduce((sum, e) => sum + e.amount, 0);
+
+      res.json({
+        totalUsers,
+        totalWriters,
+        totalProducts,
+        totalOrders,
+        totalRevenue
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ message: "Failed to fetch overview stats" });
+    }
+  });
+
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      let query = supabase.from('users').select('*').order('created_at', { ascending: false });
+      
+      if (req.query.role) query = query.eq('role', req.query.role);
+      if (req.query.status) query = query.eq('status', req.query.status);
+      if (req.query.isVerified !== undefined) query = query.eq('is_verified', req.query.isVerified === 'true');
+
+      const { data, error } = await query;
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { status, banReason, adminNotes } = req.body;
+
+      const { error } = await supabase.from('users').update({
+        status,
+        ban_reason: banReason,
+        admin_notes: adminNotes
+      }).eq('id', req.params.id);
+
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        admin_id: (req.user as any).id,
+        action: 'update_user_status',
+        target_id: req.params.id,
+        details: JSON.stringify({ status, banReason }),
+        ip_address: req.ip
+      });
+
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  app.post("/api/admin/users/:id/verify", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const callerRole = (req.user as any)?.role;
+    if (callerRole !== 'admin' && callerRole !== 'superadmin') return res.status(403).json({ message: "Admin access required" });
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { isVerified, verificationNotes } = req.body;
+
+      const { error } = await supabase.from('users').update({
+        is_verified: isVerified,
+        verified_at: isVerified ? new Date().toISOString() : null,
+        verified_by: isVerified ? (req.user as any).id : null,
+        verification_notes: verificationNotes
+      }).eq('id', req.params.id);
+
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        admin_id: (req.user as any).id,
+        action: isVerified ? 'verify_writer' : 'unverify_writer',
+        target_id: req.params.id,
+        details: verificationNotes || '',
+        ip_address: req.ip
+      });
+
+      res.sendStatus(200);
+    } catch (e: any) {
+      console.error("Verification error:", e);
+      res.status(500).json({ message: "Failed to verify user", error: e.message });
+    }
+  });
+
+  // Bulk verify writers
+  app.post("/api/admin/users/bulk-verify", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const callerRole = (req.user as any)?.role;
+    if (callerRole !== 'admin' && callerRole !== 'superadmin') return res.status(403).json({ message: "Admin access required" });
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { userIds, isVerified, verificationNotes } = req.body;
+      if (!Array.isArray(userIds) || userIds.length === 0) return res.status(400).json({ message: "userIds required" });
+
+      const { error } = await supabase.from('users').update({
+        is_verified: isVerified,
+        verified_at: isVerified ? new Date().toISOString() : null,
+        verified_by: isVerified ? (req.user as any).id : null,
+        verification_notes: verificationNotes || null
+      }).in('id', userIds);
+
+      if (error) throw error;
+
+      const auditRows = userIds.map((uid: string) => ({
+        admin_id: (req.user as any).id,
+        action: isVerified ? 'verify_writer' : 'unverify_writer',
+        target_id: uid,
+        details: `Bulk action. ${verificationNotes || ''}`,
+        ip_address: req.ip
+      }));
+      await supabase.from('audit_logs').insert(auditRows);
+
+      res.json({ updated: userIds.length });
+    } catch (e) {
+      res.status(500).json({ message: "Failed to bulk update verification" });
+    }
+  });
+
+  // Get aggregated writer review data for Admin
+  app.get("/api/admin/writers/:id/review-data", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const callerRole = (req.user as any)?.role;
+    if (callerRole !== 'admin' && callerRole !== 'superadmin') return res.status(403).json({ message: "Admin access required" });
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const writerId = req.params.id;
+
+      const [
+        userRes,
+        productsRes,
+        chaptersRes,
+        followersRes,
+        reviewsRes,
+        earningsRes,
+        reportsRes,
+        auditRes
+      ] = await Promise.all([
+        supabase.from('users').select('*').eq('id', writerId).single(),
+        supabase.from('products').select('id, title, created_at, rating, review_count, sales_count, is_published').eq('writer_id', writerId),
+        supabase.from('chapters').select('id, product_id').in('product_id',
+          (await supabase.from('products').select('id').eq('writer_id', writerId)).data?.map((p: any) => p.id) || []
+        ),
+        supabase.from('follows').select('id', { count: 'exact' }).eq('following_id', writerId),
+        supabase.from('reviews').select('id, rating, comment, created_at').in('product_id',
+          (await supabase.from('products').select('id').eq('writer_id', writerId)).data?.map((p: any) => p.id) || []
+        ),
+        supabase.from('earnings').select('amount').eq('writer_id', writerId),
+        supabase.from('content_reports').select('id, reason, status, created_at').eq('target_type', 'user').eq('target_id', writerId),
+        supabase.from('audit_logs').select('action, created_at, details').eq('target_id', writerId).order('created_at', { ascending: false }).limit(20)
+      ]);
+
+      if (userRes.error) throw userRes.error;
+
+      const products = productsRes.data || [];
+      const totalEarnings = (earningsRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+      const avgRating = products.length > 0
+        ? products.reduce((sum: number, p: any) => sum + (p.rating || 0), 0) / products.length
+        : 0;
+
+      res.json({
+        user: userRes.data,
+        stats: {
+          storyCount: products.length,
+          publishedCount: products.filter((p: any) => p.is_published).length,
+          chapterCount: chaptersRes.data?.length || 0,
+          followersCount: followersRes.count || 0,
+          totalSales: products.reduce((sum: number, p: any) => sum + (p.sales_count || 0), 0),
+          totalEarnings,
+          avgRating: Math.round(avgRating * 10) / 10,
+          totalReviews: reviewsRes.data?.length || 0,
+          reportsCount: reportsRes.data?.length || 0,
+        },
+        recentReviews: (reviewsRes.data || []).slice(0, 5),
+        reports: reportsRes.data || [],
+        auditHistory: auditRes.data || [],
+        products: products.slice(0, 10),
+      });
+    } catch (e: any) {
+      res.status(500).json({ message: "Failed to fetch writer review data", error: e.message });
+    }
+  });
+
+  app.get("/api/admin/audit-logs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: logs, error } = await supabase.from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+        
+      if (error) throw error;
+
+      if (!logs || logs.length === 0) {
+        return res.json([]);
+      }
+
+      // Fetch admin details
+      const adminIds = [...new Set(logs.map(l => l.admin_id))];
+      const { data: admins } = await supabase.from('users').select('id, display_name, email').in('id', adminIds);
+      const adminMap = new Map(admins?.map(a => [a.id, a]) || []);
+
+      const populatedLogs = logs.map(l => ({
+        ...l,
+        admin: adminMap.get(l.admin_id) || { display_name: 'Unknown', email: '' }
+      }));
+
+      res.json(populatedLogs);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  // === PHASE 2: MODERATION ROUTES ===
+  app.get("/api/admin/reports", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase.from('content_reports').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
+  app.post("/api/admin/reports/:id/status", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { status, adminNotes } = req.body;
+      const { error } = await supabase.from('content_reports').update({ status, admin_notes: adminNotes, resolved_at: status === 'resolved' ? new Date().toISOString() : null, resolved_by: status === 'resolved' ? (req.user as any).id : null }).eq('id', req.params.id);
+      if (error) throw error;
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to update report status" });
+    }
+  });
+
+  app.get("/api/admin/moderation/stories", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase.from('products').select('*, product_moderation(*)');
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch stories" });
+    }
+  });
+
+  app.post("/api/admin/moderation/stories/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { status, notes } = req.body;
+      const { error } = await supabase.from('product_moderation').upsert({ product_id: req.params.id, status, notes, moderated_by: (req.user as any).id, updated_at: new Date().toISOString() });
+      if (error) throw error;
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to moderate story" });
+    }
+  });
+
+  // === PHASE 3: FINANCIALS & LOGISTICS ROUTES ===
+  app.get("/api/admin/finances", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase.from('platform_finances').select('*').order('period', { ascending: false });
+      if (error) throw error;
+      
+      const [revRes, payoutsRes] = await Promise.all([
+        supabase.from('earnings').select('amount'),
+        supabase.from('payouts').select('amount').eq('status', 'paid')
+      ]);
+      const totalRev = (revRes.data || []).reduce((acc, curr) => acc + curr.amount, 0);
+      const totalPayouts = (payoutsRes.data || []).reduce((acc, curr) => acc + curr.amount, 0);
+      
+      res.json({ periods: data, currentSnapshot: { totalRev, totalPayouts } });
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch finances" });
+    }
+  });
+
+  app.get("/api/admin/orders", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase.from('order_items').select('*, order:orders(*), product:products(title)');
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch all orders" });
+    }
+  });
+
+  app.post("/api/admin/orders/:id/return", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { returnStatus, returnReason } = req.body;
+      const { error } = await supabase.from('order_items').update({
+        return_status: returnStatus,
+        return_reason: returnReason,
+        fulfillment_status: returnStatus === 'approved' ? 'returned' : undefined
+      }).eq('id', req.params.id);
+      if (error) throw error;
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to update return status" });
+    }
+  });
+
+  app.post("/api/admin/subscriptions/:userId/override", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { newTier, adminNotes } = req.body;
+      
+      const { error } = await supabase.from('users').update({
+        subscription_tier: newTier,
+        admin_notes: adminNotes
+      }).eq('id', req.params.userId);
+      
+      if (error) throw error;
+      
+      await supabase.from('audit_logs').insert({
+        admin_id: (req.user as any).id,
+        action: 'override_subscription',
+        target_id: req.params.userId,
+        details: JSON.stringify({ newTier, adminNotes }),
+        ip_address: req.ip
+      });
+      
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to override subscription" });
+    }
+  });
+
+  // === PHASE 4: MARKETING, COMMUNITY & SETTINGS ROUTES ===
+  app.get("/api/admin/settings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase.from('platform_settings').select('*');
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/admin/settings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { key, value } = req.body;
+      
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      
+      if (error) throw error;
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  app.post("/api/admin/notifications", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { title, message, type, targetRole } = req.body;
+      
+      const { error } = await supabase.from('global_notifications').insert({
+        title, message, type, target_role: targetRole
+      });
+      if (error) throw error;
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to create notification" });
+    }
+  });
+
+  app.get("/api/admin/chat/moderation", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { data, error } = await supabase
+        .from('global_chat_messages')
+        .select('*')
+        .eq('is_flagged', true)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to fetch flagged chat messages" });
+    }
+  });
+
+  app.delete("/api/admin/chat/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+      const { error } = await supabase.from('global_chat_messages').delete().eq('id', req.params.id);
+      if (error) throw error;
+      res.sendStatus(200);
+    } catch (e) {
+      res.status(500).json({ message: "Failed to delete chat message" });
+    }
+  });
+
   app.get("/api/admin/orders/pending", async (req, res) => {
     // Basic role check
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -1256,16 +2069,6 @@ export async function registerRoutes(
 
       if (!items) return res.status(400).json({ message: "No items found" });
 
-      // Fetch writer rates for correct commission calculation
-      const writerIds = Array.from(new Set(items.map((i: any) => i.product?.writer_id).filter(Boolean)));
-      const { data: writers } = await supabase
-        .from('users')
-        .select('id, commission_rate')
-        .in('id', writerIds as string[]);
-
-      const ratesMap = new Map<string, number>();
-      writers?.forEach((w: any) => ratesMap.set(w.id, w.commission_rate));
-
       // 2. Update Order Status
       const { error: updateError } = await supabase
         .from('orders')
@@ -1285,13 +2088,11 @@ export async function registerRoutes(
         const product = (item as any).product;
         if (!product) continue;
 
-        const isPhysical = product.type === 'physical';
-        const writerRate = ratesMap.get(product.writer_id) ?? 20;
-        const rate = isPhysical ? 12 : writerRate;
         const quantity = item.quantity || 1;
         const totalPrice = item.price * quantity;
-        const fee = Math.round(totalPrice * (rate / 100));
-        const earning = totalPrice - fee;
+        
+        // Unified 20% platform fee rule
+        const { fee, earning } = calculateCommission(totalPrice);
 
         const current = earningsByCreator.get(product.writer_id) || 0;
         earningsByCreator.set(product.writer_id, current + earning);
@@ -1930,11 +2731,12 @@ export async function registerRoutes(
 
   app.get("/api/media", async (req, res) => {
     try {
-      const { category, isFeatured, relatedStoryId } = req.query;
+      const { category, isFeatured, relatedStoryId, creatorId } = req.query;
       let videos = await storage.getMediaVideos({
         category: category as string,
         isFeatured: isFeatured === 'true' ? true : undefined,
-        relatedStoryId: relatedStoryId ? Number(relatedStoryId) : undefined
+        relatedStoryId: relatedStoryId ? Number(relatedStoryId) : undefined,
+        creatorId: creatorId as string
       });
 
       res.json(videos);
@@ -2004,6 +2806,531 @@ export async function registerRoutes(
       res.sendStatus(204);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==========================================
+  // MEMBERSHIPS V2 SYSTEM
+  // ==========================================
+
+  // --- CLUBS ---
+  app.get("/api/memberships/clubs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+    const { data: clubs, error } = await supabase
+      .from("membership_clubs")
+      .select("*")
+      .eq("store_id", userId);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(clubs);
+  });
+
+  app.post("/api/memberships/clubs", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+    const { name, description } = req.body;
+    const { data, error } = await supabase
+      .from("membership_clubs")
+      .insert({ store_id: userId, name, description })
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  });
+
+  // --- PLANS ---
+  app.get("/api/memberships/plans", async (req, res) => {
+    // Public route to view active plans for a store
+    const { storeId } = req.query;
+    if (!storeId) return res.status(400).json({ error: "storeId required" });
+    
+    // Check if creator is requesting their own plans
+    const isOwner = req.isAuthenticated() && (req.user as any).id === storeId;
+
+    let query = supabase
+      .from("membership_plans")
+      .select(`
+        *,
+        club:membership_clubs!inner(store_id),
+        pricing:plan_pricing(*),
+        benefits:plan_benefits(
+          *,
+          scopes:benefit_scopes(*),
+          limits:benefit_limits(*)
+        )
+      `)
+      .eq("club.store_id", storeId);
+
+    if (!isOwner) {
+      query = query.eq("status", "active").eq("visibility", "public");
+    }
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  });
+
+  app.post("/api/memberships/plans", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+    
+    const { clubId, name, shortDescription, fullDescription, thumbnailUrl, bannerUrl, badgeUrl, colorTheme, status, visibility, pricing, benefits } = req.body;
+
+    try {
+      // 1. Create Plan
+      const { data: plan, error: planError } = await supabase
+        .from("membership_plans")
+        .insert({
+          club_id: clubId,
+          name,
+          short_description: shortDescription,
+          full_description: fullDescription,
+          thumbnail_url: thumbnailUrl,
+          banner_url: bannerUrl,
+          badge_url: badgeUrl,
+          color_theme: colorTheme,
+          status,
+          visibility
+        })
+        .select()
+        .single();
+      if (planError) throw planError;
+
+      // 2. Create Pricing
+      if (pricing && pricing.length > 0) {
+        const pricingInserts = pricing.map((p: any) => ({
+          plan_id: plan.id,
+          billing_cycle: p.billingCycle,
+          price_in_cents: p.priceInCents
+        }));
+        const { error: pricingError } = await supabase.from("plan_pricing").insert(pricingInserts);
+        if (pricingError) throw pricingError;
+      }
+
+      // 3. Create Benefits & Scopes
+      if (benefits && benefits.length > 0) {
+        for (const b of benefits) {
+          const { data: benefit, error: benError } = await supabase
+            .from("plan_benefits")
+            .insert({ plan_id: plan.id, type: b.type, name: b.name, value: b.value })
+            .select()
+            .single();
+          if (benError) throw benError;
+
+          if (b.scopes) {
+            const scopeInserts = b.scopes.map((s: any) => ({
+              benefit_id: benefit.id,
+              scope_type: s.scopeType,
+              scope_target_id: s.scopeTargetId
+            }));
+            await supabase.from("benefit_scopes").insert(scopeInserts);
+          }
+
+          if (b.limits) {
+            const limitInserts = b.limits.map((l: any) => ({
+              benefit_id: benefit.id,
+              limit_type: l.limitType,
+              limit_value: l.limitValue
+            }));
+            await supabase.from("benefit_limits").insert(limitInserts);
+          }
+        }
+      }
+
+      res.json(plan);
+    } catch (error: any) {
+      console.error("[Memberships] Plan creation failed:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/memberships/plans/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const planId = req.params.id;
+    const { status, visibility, name } = req.body;
+    const { data, error } = await supabase
+      .from("membership_plans")
+      .update({ status, visibility, name, updated_at: new Date().toISOString() })
+      .eq("id", planId)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  });
+
+  // --- SUBSCRIPTIONS ---
+  app.post("/api/memberships/subscribe", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+    const { planId, pricingId, paymentMethod, paymentReference, paymentProofUrl } = req.body;
+
+    try {
+      // Fetch plan and pricing to calculate end date
+      const { data: pricing } = await supabase.from("plan_pricing").select("*").eq("id", pricingId).single();
+      const { data: plan } = await supabase.from("membership_plans").select("club_id, name").eq("id", planId).single();
+      
+      // Exact day calculation to prevent JavaScript setMonth bugs and guarantee exact access duration
+      let daysToAdd = 30; // 1 month fallback
+      if (pricing?.billing_cycle === 'monthly') daysToAdd = 30;
+      else if (pricing?.billing_cycle === 'quarterly') daysToAdd = 90;
+      else if (pricing?.billing_cycle === 'semi_annual') daysToAdd = 180;
+      else if (pricing?.billing_cycle === 'annual') daysToAdd = 365;
+
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + daysToAdd);
+
+      const isManualPayment = [
+          "instapay",
+          "vodafone_cash",
+          "orange_cash",
+          "etisalat_cash",
+          "bank_transfer"
+      ].includes(paymentMethod);
+      const subStatus = isManualPayment ? 'pending' : 'active';
+
+      // Create Subscription
+      const { data: sub, error: subError } = await supabase
+        .from("creator_subscriptions")
+        .insert({
+          user_id: userId,
+          plan_id: planId,
+          pricing_id: pricingId,
+          status: subStatus,
+          current_period_end: endDate.toISOString(),
+          payment_method: paymentMethod || 'local',
+          payment_reference: paymentReference
+        })
+        .select()
+        .single();
+      if (subError) throw subError;
+
+      // Create the financial transaction (Order)
+      const amountInEgp = pricing?.price_in_cents / 100;
+      const { fee, earning } = calculateCommission(amountInEgp);
+
+      const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+              user_id: userId,
+              total_amount: amountInEgp,
+              platform_fee: fee,
+              creator_earnings: earning,
+              status: subStatus === 'active' ? 'paid' : 'pending',
+              payment_method: paymentMethod || 'local',
+              payment_proof_url: paymentProofUrl,
+              payment_reference: paymentReference,
+              is_verified: !isManualPayment
+          })
+          .select()
+          .single();
+      if (orderError) throw orderError;
+
+      // Create Order Item to link to creator for earnings calculations
+      const clubId = plan?.club_id;
+      const planName = plan?.name ?? 'Membership';
+      const { data: club } = clubId
+          ? await supabase.from("membership_clubs").select("store_id").eq("id", clubId).single()
+          : { data: null };
+
+      await supabase
+          .from('order_items')
+          .insert({
+              order_id: order.id,
+              price: amountInEgp,
+              quantity: 1,
+              creator_id: club?.store_id,
+              fulfillment_status: 'delivered', // Memberships are delivered instantly
+              customization_data: { subscription_id: sub.id, plan_name: planName, is_membership: true }
+          });
+
+      // Provision Entitlements
+      const { error: rpcError } = await supabase.rpc('provision_entitlements', { p_subscription_id: sub.id });
+      if (rpcError) console.error("Failed to provision entitlements", rpcError);
+
+      res.json(sub);
+    } catch (error: any) {
+      console.error("[Memberships] Subscription failed:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =====================================================
+  // UNIFIED ACCESS CONTROL (v2)
+  // =====================================================
+
+  /**
+   * GET /api/access/product/:id
+   * Primary product access endpoint — checks purchases, subscriptions,
+   * and benefit types. Server-side only; cannot be bypassed from frontend.
+   */
+  app.get("/api/access/product/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.json({ hasAccess: false, reason: "none", subscriptionExpiry: null, planName: null, creatorUsername: null });
+    }
+    const userId = (req.user as any).id;
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ error: "Invalid product id" });
+
+    try {
+      const result = await canUserAccessProduct(userId, productId);
+      res.json(result);
+    } catch (err: any) {
+      console.error("[AccessEngine] Error:", err);
+      res.status(500).json({ hasAccess: false, reason: "none", error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/library/add
+   * Adds a product to the user's explicit saved library.
+   */
+  app.post("/api/library/add", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    const userId = (req.user as any).id;
+    const { productId } = req.body;
+
+    if (!productId) return res.status(400).json({ error: "Missing productId" });
+
+    try {
+      // Check if it already exists
+      const { data: existing } = await supabase
+        .from('saved_library')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('product_id', productId)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        return res.json({ success: true, message: "Already in library" });
+      }
+
+      await supabase.from('saved_library').insert({
+        user_id: userId,
+        product_id: productId
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[Library] Error adding to library:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/library/status/:productId
+   * Checks if a specific product is in the user's saved library.
+   */
+  app.get("/api/library/status/:productId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.json({ inLibrary: false });
+    const userId = (req.user as any).id;
+    const productId = req.params.productId;
+
+    try {
+      const { data } = await supabase
+        .from('saved_library')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('product_id', productId)
+        .limit(1)
+        .maybeSingle();
+        
+      res.json({ inLibrary: !!data });
+    } catch (err) {
+      res.json({ inLibrary: false });
+    }
+  });
+
+  /**
+   * GET /api/access/library
+   * Returns all products explicitly saved to the user's library.
+   */
+  app.get("/api/access/library", async (req, res) => {
+    if (!req.isAuthenticated()) return res.json([]);
+    const userId = (req.user as any).id;
+    const limit = parseInt((req.query.limit as string) || "50");
+    const offset = parseInt((req.query.offset as string) || "0");
+
+    try {
+      // Query the user's saved library and join the products table
+      const { data, error } = await supabase
+        .from('saved_library')
+        .select(`
+          product_id,
+          saved_at,
+          products (
+            id, writer_id, title, description, cover_url, type, genre, price, is_published, requires_shipping
+          )
+        `)
+        .eq('user_id', userId)
+        .order('saved_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) throw error;
+      
+      // Flatten the response and check access for each
+      const library = await Promise.all((data || []).map(async (item) => {
+        const access = await import("./controllers/access.controller").then(m => m.canUserAccessProduct(userId, item.product_id));
+        return {
+          ...item.products,
+          savedAt: item.saved_at,
+          hasAccess: access.hasAccess,
+          accessReason: access.reason
+        };
+      }));
+
+      res.json(library);
+    } catch (err: any) {
+      console.error("[Library] Error fetching library:", err);
+      res.status(500).json([]);
+    }
+  });
+
+  /**
+   * GET /api/memberships/check-access (LEGACY — kept for backwards compat)
+   * Now delegates to the full access engine using the first published product
+   * found for the given storeId. For store-level checks without a product ID,
+   * it queries active subscriptions directly.
+   */
+  app.get("/api/memberships/check-access", async (req, res) => {
+    if (!req.isAuthenticated()) return res.json({ hasAccess: false });
+    const userId = (req.user as any).id;
+    const { storeId } = req.query;
+    if (!storeId) return res.status(400).json({ error: "storeId required" });
+
+    try {
+      // Check if user has any active subscription to this store
+      const library = await getSubscriptionLibrary(userId, 1, 0);
+      const storeEntry = library.find(l => l.storeId === storeId);
+      if (storeEntry) {
+        return res.json({ hasAccess: true, planName: storeEntry.planName, expiresAt: storeEntry.expiresAt });
+      }
+      return res.json({ hasAccess: false });
+    } catch (err: any) {
+      return res.json({ hasAccess: false });
+    }
+  });
+
+  // --- SUBSCRIBER MANAGEMENT (Creator Dashboard) ---
+  app.get("/api/memberships/subscribers", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+
+    try {
+      // Get all clubs for this creator
+      const { data: clubs } = await supabase
+        .from("membership_clubs")
+        .select("id")
+        .eq("store_id", userId);
+
+      if (!clubs || clubs.length === 0) return res.json([]);
+      const clubIds = clubs.map((c: any) => c.id);
+
+      // Get all plans in those clubs
+      const { data: plans } = await supabase
+        .from("membership_plans")
+        .select("id, name, color_theme")
+        .in("club_id", clubIds);
+
+      if (!plans || plans.length === 0) return res.json([]);
+      const planIds = plans.map((p: any) => p.id);
+      const planMap = new Map(plans.map((p: any) => [p.id, p]));
+
+      // Get all subscriptions to those plans
+      const { data: subs, error } = await supabase
+        .from("creator_subscriptions")
+        .select("*")
+        .in("plan_id", planIds)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Filter out expired subscriptions but keep pending ones
+      const now = new Date();
+      const validSubs = (subs || []).filter((s: any) => {
+        if (s.status === 'pending') return true;
+        return new Date(s.current_period_end) >= now;
+      });
+
+      // Fetch users manually
+      const userIds = [...new Set(validSubs.map((s: any) => s.user_id))];
+      let usersMap = new Map();
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from("users")
+          .select("id, display_name, username, email")
+          .in("id", userIds);
+        if (users) {
+          usersMap = new Map(users.map((u: any) => [u.id, u]));
+        }
+      }
+
+      // Enrich with plan and user info
+      const enriched = validSubs.map((s: any) => ({
+        ...s,
+        plan: planMap.get(s.plan_id) || null,
+        user: usersMap.get(s.user_id) || null,
+      }));
+
+      res.json(enriched);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Approve a pending subscription (manual payment verified by creator)
+  app.post("/api/memberships/approve-subscription/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const userId = (req.user as any).id;
+    const subId = parseInt(req.params.id);
+
+    try {
+      // Security: ensure the creator owns the plan this subscription belongs to
+      const { data: sub } = await supabase
+        .from("creator_subscriptions")
+        .select("id, plan_id, status")
+        .eq("id", subId)
+        .single();
+
+      if (!sub) return res.status(404).json({ error: "Subscription not found" });
+
+      const { data: plan } = await supabase
+        .from("membership_plans")
+        .select("club_id")
+        .eq("id", sub.plan_id)
+        .single();
+
+      const { data: club } = await supabase
+        .from("membership_clubs")
+        .select("store_id")
+        .eq("id", plan?.club_id)
+        .single();
+
+      if (club?.store_id !== userId) return res.status(403).json({ error: "Forbidden" });
+
+      // Activate the subscription
+      const { data: updated, error } = await supabase
+        .from("creator_subscriptions")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("id", subId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Mark the linked order as verified
+      await supabase
+        .from("orders")
+        .update({ status: "paid", is_verified: true })
+        .contains("order_items.customization_data", { subscription_id: subId });
+
+      // Provision entitlements now that subscription is active
+      const { error: rpcError } = await supabase.rpc("provision_entitlements", { p_subscription_id: subId });
+      if (rpcError) console.error("[Memberships] Failed to provision entitlements on approval:", rpcError);
+
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

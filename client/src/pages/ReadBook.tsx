@@ -1,7 +1,7 @@
 import { useProduct, useUpdateProduct, useProductContent } from "@/hooks/use-products";
 import { useChapters } from "@/hooks/use-chapters";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2, ArrowLeft, Settings, Type, Moon, Sun, Bookmark, Edit, Save, X } from "lucide-react";
+import { Loader2, ArrowLeft, Type, Moon, Sun, Edit, Save, X, Lock, Crown, BadgeCheck, AlertTriangle } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { SEO } from "@/components/SEO";
+import { useProductAccess } from "@/hooks/use-product-access";
 
 export default function ReadBook() {
     const [, params] = useRoute("/read/:id");
@@ -20,10 +21,14 @@ export default function ReadBook() {
     const { user } = useAuth();
     const { t, i18n } = useTranslation();
 
+    const isOwner = user && product && user.id === (product as any).writerId;
+
+    // Unified access check via server-side engine
+    const { hasAccess, reason, planName, subscriptionExpiry, creatorUsername, isLoading: accessLoading, isExpiringSoon, isSubscriptionAccess } = useProductAccess(id);
+
     const [fontSize, setFontSize] = useState(18);
     const [theme, setTheme] = useState<"light" | "dark">("light");
     const [fontFamily, setFontFamily] = useState<"serif" | "sans">("serif");
-
     const [isEditing, setIsEditing] = useState(false);
     const [textContent, setTextContent] = useState("");
     const [activeChapterIndex, setActiveChapterIndex] = useState(0);
@@ -139,8 +144,35 @@ export default function ReadBook() {
         };
     }, [isEditing]);
 
-    if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
-    if (!product) return <div>Book not found</div>;
+    if (isLoading || accessLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+    if (!product) return <div>الكتاب غير موجود</div>;
+
+    // Access gate: block non-owners who have no access
+    if (!hasAccess) {
+        const writerUsername = creatorUsername || (product as any).writer?.username;
+        return (
+            <div className="h-screen flex flex-col items-center justify-center gap-6 bg-background px-4 text-center">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Lock className="w-10 h-10 text-primary" />
+                </div>
+                <h1 className="text-3xl font-serif font-bold">{t('reader.premiumContent', 'محتوى مميز')}</h1>
+                <p className="text-muted-foreground max-w-md">
+                    {t('reader.premiumDescription', 'هذا الكتاب جزء من عضوية مميزة. اشترك للحصول على وصول غير محدود لمكتبة هذا المبدع.')}
+                </p>
+                {writerUsername && (
+                    <Link href={`/writer/${writerUsername}`}>
+                        <Button size="lg" className="gap-2">
+                            <Crown className="w-5 h-5" />
+                            {t('reader.viewMemberships', 'عرض خطط العضوية')}
+                        </Button>
+                    </Link>
+                )}
+                <Link href="/dashboard">
+                    <Button variant="ghost">{t('common.back', 'رجوع')}</Button>
+                </Link>
+            </div>
+        );
+    }
 
     const bgColors = {
         light: "bg-white text-gray-900 border-gray-200",
@@ -215,7 +247,7 @@ export default function ReadBook() {
                 <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03] select-none flex flex-wrap justify-around items-center content-around p-10">
                     {Array.from({ length: 20 }).map((_, i) => (
                         <div key={i} className="text-4xl font-bold -rotate-45 whitespace-nowrap p-10">
-                            {user?.displayName || user?.username || "Hekayaty Protected"} {user?.id?.slice(0, 8)}
+                            {user?.displayName || user?.username || "حكاياتي محمي"} {user?.id?.slice(0, 8)}
                         </div>
                     ))}
                 </div>
@@ -238,7 +270,7 @@ export default function ReadBook() {
                             </span>
                         )}
                         <span className="mx-4 px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-[10px] font-bold uppercase tracking-widest border border-green-500/30">
-                            {t("reader.protected", "Protected View")}
+                            {t("reader.protected", "عرض محمي")}
                         </span>
                     </h1>
 
@@ -316,9 +348,9 @@ export default function ReadBook() {
                                 </div>
                             ) : (
                                 <div className="text-center py-20 opacity-50">
-                                    <h2 className={gTheme.accent}>No content available</h2>
+                                    <h2 className={gTheme.accent}>لا يوجد محتوى متاح</h2>
                                     <p className="leading-relaxed mb-6">
-                                        {product.description || "The author hasn't added any chapters yet."}
+                                        {product.description || "لم يقم المؤلف بإضافة أي فصول بعد."}
                                     </p>
                                 </div>
                             )}
@@ -337,7 +369,7 @@ export default function ReadBook() {
                             {t("common.previous")}
                         </Button>
                         <span className="text-sm">
-                            {chapters && chapters.length > 0 ? `${t("studio.market.serialized", "Chapter")} ${activeChapterIndex + 1} / ${chapters.length}` : t("common.end", "End")}
+                            {chapters && chapters.length > 0 ? `${t("studio.market.serialized", "الفصل")} ${activeChapterIndex + 1} / ${chapters.length}` : t("common.end", "النهاية")}
                         </span>
                         <Button
                             variant="outline"

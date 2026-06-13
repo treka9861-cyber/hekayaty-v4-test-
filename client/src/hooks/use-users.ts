@@ -6,6 +6,7 @@ import type { Database } from "@/lib/supabase";
 type UserRow = Database['public']['Tables']['users']['Row'];
 
 function mapUser(user: UserRow) {
+  const raw = user as any;
   return {
     ...user,
     displayName: user.display_name,
@@ -17,6 +18,10 @@ function mapUser(user: UserRow) {
     commissionRate: user.commission_rate || 20,
     isActive: user.is_active ?? true,
     shippingPolicy: user.shipping_policy || "",
+    // Verification fields (added in Phase 1 migration; cast via `any` until types regenerate)
+    isVerified: raw.is_verified ?? false,
+    verifiedAt: raw.verified_at ?? null,
+    verifiedBy: raw.verified_by ?? null,
   };
 }
 
@@ -82,25 +87,19 @@ export function useTopWriters(limit = 4) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('users')
-        .select('*, products!inner(id)') // !inner ensures only users with products are returned
+        .select('*, products(id)')
         .neq('role', 'reader')
         .neq('role', 'admin');
 
       if (error) throw error;
       
-      // Group by user id and count products
-      const userMap = new Map<string, any>();
-      data.forEach((row: any) => {
-        if (!userMap.has(row.id)) {
-          userMap.set(row.id, { ...mapUser(row), productCount: 0 });
-        }
-        // Since we joined products, we might have multiple rows if we didn't use a specific join type
-        // but Supabase select('*, products(id)') returns products as an array usually.
-        // If products is an array:
-        userMap.get(row.id).productCount = row.products?.length || 0;
-      });
+      const writers = data.map(row => ({
+        ...mapUser(row),
+        productCount: (row as any).products?.length || 0
+      }));
 
-      return Array.from(userMap.values())
+      return writers
+        .filter(w => w.productCount > 0)
         .sort((a, b) => b.productCount - a.productCount)
         .slice(0, limit);
     },
@@ -193,5 +192,6 @@ export function usePlatformStats() {
         readers: readersCount || 0
       };
     },
+    staleTime: 60 * 60 * 1000, // 1 hour
   });
 }

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Star, ShoppingCart, LayoutGrid, Sparkles, Bookmark, Heart, User } from "lucide-react";
+import { Star, ShoppingCart, LayoutGrid, Sparkles, Bookmark, Heart, User, BadgeCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { Product } from "@shared/schema";
 import { useTranslation } from "react-i18next";
@@ -98,7 +98,10 @@ export function ProductCard({ product, collection, variant = "default" }: Produc
           </h3>
           <div className="flex items-center gap-1 text-[10px] text-[#aaaaaa] mb-1">
              <User size={10} />
-             <span>{writer?.displayName || t("common.author")}</span>
+             <span className="flex items-center gap-0.5">
+               {writer?.displayName || t("common.author")}
+               {writer?.isVerified && <BadgeCheck className="w-2.5 h-2.5 text-primary" />}
+             </span>
           </div>
           <div className="mt-auto flex items-center justify-between">
             <span className="font-black text-primary text-sm">
@@ -184,8 +187,9 @@ export function ProductCard({ product, collection, variant = "default" }: Produc
                    <User size={10} className="text-[#aaaaaa]" />
                  )}
               </div>
-              <span className="text-[#aaaaaa] text-[9px] font-black tracking-tight truncate max-w-[120px]">
+              <span className="text-[#aaaaaa] text-[9px] font-black tracking-tight truncate max-w-[120px] flex items-center gap-1">
                  {writer?.displayName || (isCollection ? t("home.collections.bundle") : t("common.author"))}
+                 {writer?.isVerified && <BadgeCheck className="w-2.5 h-2.5 text-primary shrink-0" />}
               </span>
            </div>
            {isCollection && (

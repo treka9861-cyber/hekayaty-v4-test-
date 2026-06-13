@@ -9,17 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Lock, CheckCircle2 } from "lucide-react";
+import { Loader2, Lock, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
 const resetPasswordSchema = z
     .object({
-        password: z.string().min(8, "Password must be at least 8 characters long"),
+        password: z.string().min(8, "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل"),
         confirmPassword: z.string(),
     })
     .refine((data) => data.password === data.confirmPassword, {
-        message: "Passwords do not match",
+        message: "كلمتا المرور غير متطابقتين",
         path: ["confirmPassword"],
     });
 
@@ -30,6 +30,8 @@ export default function ResetPassword() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [sessionCheck, setSessionCheck] = useState(true);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     useEffect(() => {
         const checkSession = async () => {
@@ -133,11 +135,18 @@ export default function ResetPassword() {
                                     <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
                                     <Input
                                         id="password"
-                                        type="password"
+                                        type={showPassword ? "text" : "password"}
                                         placeholder={t('resetPassword.minLength')}
-                                        className="pl-10"
+                                        className="pl-10 pr-10"
                                         {...form.register("password")}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                                 {form.formState.errors.password && (
                                     <p className="text-sm text-red-500">{t('resetPassword.minLength')}</p>
@@ -150,11 +159,18 @@ export default function ResetPassword() {
                                     <Lock className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
                                     <Input
                                         id="confirmPassword"
-                                        type="password"
+                                        type={showConfirmPassword ? "text" : "password"}
                                         placeholder={t('resetPassword.confirmPassword')}
-                                        className="pl-10"
+                                        className="pl-10 pr-10"
                                         {...form.register("confirmPassword")}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
                                 </div>
                                 {form.formState.errors.confirmPassword && (
                                     <p className="text-sm text-red-500">{t('resetPassword.mismatch')}</p>

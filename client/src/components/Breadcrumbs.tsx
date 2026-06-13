@@ -24,7 +24,7 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
         <li>
           <Link href="/" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
             <Home className="w-4 h-4" />
-            <span className="sr-only">{t("nav.home", "Home")}</span>
+            <span className="sr-only">{t("nav.home", "الرئيسية")}</span>
           </Link>
         </li>
         

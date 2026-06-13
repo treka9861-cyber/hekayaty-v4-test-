@@ -2,12 +2,16 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
 const app = express();
 const httpServer = createServer(app);
+
+// 0. COMPRESSION
+app.use(compression());
 
 // 1. SECURITY HEADERS (CORS, XSS, Clickjacking, etc.)
 app.use(helmet({
@@ -27,7 +31,7 @@ app.use(helmet({
 // 2. RATE LIMITING (Prevent Brute Force / DDoS)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per window
+  max: 5000, // limit each IP to 5000 requests per window
   standardHeaders: true,
   legacyHeaders: false,
   message: "Too many requests from this IP, please try again later.",
@@ -41,8 +45,44 @@ const authLimiter = rateLimit({
   message: "Too many login attempts. Please try again in an hour.",
 });
 
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // 500 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many chat messages sent. Please slow down.",
+});
+
+const ordersLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many checkout attempts. Please wait.",
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many files uploaded. Please wait.",
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many admin actions performed. Please slow down.",
+});
+
 app.use("/api", generalLimiter);
 app.use("/api/auth", authLimiter);
+app.use("/api/orders", ordersLimiter);
+app.use("/api/chat", chatLimiter);
+app.use("/api/upload", uploadLimiter);
+app.use("/api/admin", adminLimiter);
 
 // 3. BODY LIMITING (Prevent Large Payload Attacks)
 app.use(express.json({
@@ -67,22 +107,11 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
+      const logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       log(logLine);
     }
   });
@@ -90,7 +119,8 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
+let appReady = false;
+const setupPromise = (async () => {
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -98,24 +128,23 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
     serveStatic(app);
-  } else {
+  } else if (!process.env.VERCEL) {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
+  appReady = true;
+})();
+
+if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
+  setupPromise.then(() => {
     const port = parseInt(process.env.PORT || "5000", 10);
     httpServer.listen(
       {
@@ -126,7 +155,15 @@ app.use((req, res, next) => {
         log(`serving on port ${port}`);
       },
     );
+  });
+}
+
+// Export for Vercel
+export default async function handler(req: Request, res: Response) {
+  if (!appReady) {
+    await setupPromise;
   }
-})();
+  return app(req, res);
+}
 
 

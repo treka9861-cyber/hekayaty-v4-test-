@@ -16,6 +16,7 @@ export interface ChatMessage {
         username: string;
         display_name: string;
         avatar_url: string | null;
+        is_verified?: boolean;
     };
     reply_to?: ChatMessage | null;
 }
@@ -35,7 +36,7 @@ export function useChat(storeId: string) {
                 .from('chat_messages')
                 .select(`
           *,
-          sender:users!chat_messages_sender_id_fkey(username, display_name, avatar_url)
+          sender:users!chat_messages_sender_id_fkey(username, display_name, avatar_url, is_verified)
         `);
 
             if (storeId === 'global') {

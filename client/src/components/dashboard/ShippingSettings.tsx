@@ -35,22 +35,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useShippingRates, useCreateShippingRate, useDeleteShippingRate } from "@/hooks/use-shipping";
 
 const formSchema = z.object({
-    regionName: z.string().min(1, "Region is required"),
-    amount: z.coerce.number().min(0, "Amount must be positive"),
-    deliveryTimeMin: z.coerce.number().min(1, "Min days must be 1+"),
-    deliveryTimeMax: z.coerce.number().min(1, "Max days must be 1+"),
+    regionName: z.string().min(1, "المنطقة مطلوبة"),
+    amount: z.coerce.number().min(0, "التكلفة يجب أن تكون موجبة"),
+    deliveryTimeMin: z.coerce.number().min(1, "الحد الأدنى للأيام يجب أن يكون 1 فأكثر"),
+    deliveryTimeMax: z.coerce.number().min(1, "الحد الأقصى للأيام يجب أن يكون 1 فأكثر"),
 });
 
 const EGYPT_REGIONS = [
-    "Greater Cairo",
-    "Alexandria",
-    "Delta",
-    "Canal Cities",
-    "Upper Egypt",
-    "Red Sea",
-    "Sinai",
-    "All Over Egypt",
-    "International"
+    "القاهرة الكبرى",
+    "الإسكندرية",
+    "الدلتا",
+    "مدن القناة",
+    "صعيد مصر",
+    "البحر الأحمر",
+    "سيناء",
+    "جميع أنحاء مصر",
+    "دولي"
 ];
 
 export function ShippingSettings({ userId }: { userId: string }) {
@@ -95,7 +95,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
     }
 
     function handleDelete(id: number) {
-        if (confirm("Are you sure you want to delete this shipping rate?")) {
+        if (confirm("هل أنت متأكد من رغبتك في حذف سعر الشحن هذا؟")) {
             deleteRate.mutate({ id, creatorId: userId });
         }
     }
@@ -110,15 +110,15 @@ export function ShippingSettings({ userId }: { userId: string }) {
                 <CardHeader>
                     <CardTitle className="text-xl font-serif text-primary flex items-center gap-2">
                         <Globe className="w-5 h-5" />
-                        Delivery Coverage Description
+                        وصف تغطية التوصيل
                     </CardTitle>
                     <CardDescription>
-                        Write the places you can ship to, or any specific delivery notes for your buyers.
+                        اكتب الأماكن التي يمكنك الشحن إليها، أو أي ملاحظات توصيل محددة للمشترين.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <Textarea
-                        placeholder="e.g. We ship to all of Cairo, Giza, and Alexandria. Specific districts in Upper Egypt can be arranged via message."
+                        placeholder="مثال: نشحن إلى جميع أنحاء القاهرة والجيزة والإسكندرية. يمكن ترتيب الشحن لمناطق محددة في الصعيد عبر الرسائل."
                         className="min-h-[120px] bg-white/5 border-white/10"
                         value={policyText}
                         onChange={(e) => setPolicyText(e.target.value)}
@@ -129,7 +129,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                             disabled={updateUser.isPending}
                             className="bg-primary text-white"
                         >
-                            {updateUser.isPending ? "Saving..." : "Save Delivery Description"}
+                            {updateUser.isPending ? "جاري الحفظ..." : "حفظ وصف التوصيل"}
                         </Button>
                     </div>
                 </CardContent>
@@ -137,9 +137,9 @@ export function ShippingSettings({ userId }: { userId: string }) {
 
             <Card className="border-amber-200/20 bg-black/40 backdrop-blur-sm">
                 <CardHeader>
-                    <CardTitle className="text-xl font-cinzel text-amber-500">Add Shipping Rate</CardTitle>
+                    <CardTitle className="text-xl font-cinzel text-amber-500">إضافة سعر شحن</CardTitle>
                     <CardDescription className="text-amber-200/60">
-                        Define shipping costs for different regions. These will be calculated at checkout.
+                        حدد تكاليف الشحن لمناطق مختلفة. سيتم حسابها عند الدفع.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -151,11 +151,11 @@ export function ShippingSettings({ userId }: { userId: string }) {
                                     name="regionName"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Region / City Name</FormLabel>
+                                            <FormLabel>اسم المنطقة / المدينة</FormLabel>
                                             <FormControl>
                                                 <div className="space-y-2">
                                                     <Input
-                                                        placeholder="e.g. Nasr City or Giza"
+                                                        placeholder="مثال: مدينة نصر أو الجيزة"
                                                         {...field}
                                                         list="egypt-regions"
                                                     />
@@ -174,7 +174,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                                     name="amount"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Cost (EGP)</FormLabel>
+                                            <FormLabel>التكلفة (ج.م)</FormLabel>
                                             <FormControl>
                                                 <Input type="number" step="0.5" {...field} />
                                             </FormControl>
@@ -188,7 +188,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                                     name="deliveryTimeMin"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Min Days</FormLabel>
+                                            <FormLabel>الحد الأدنى للأيام</FormLabel>
                                             <FormControl>
                                                 <Input type="number" {...field} />
                                             </FormControl>
@@ -202,7 +202,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                                     name="deliveryTimeMax"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Max Days</FormLabel>
+                                            <FormLabel>الحد الأقصى للأيام</FormLabel>
                                             <FormControl>
                                                 <Input type="number" {...field} />
                                             </FormControl>
@@ -218,7 +218,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                                 disabled={createRate.isPending}
                             >
                                 {createRate.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Add Rate
+                                إضافه السعر
                             </Button>
                         </form>
                     </Form>
@@ -227,7 +227,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
 
             <Card className="border-amber-200/20 bg-black/40 backdrop-blur-sm">
                 <CardHeader>
-                    <CardTitle className="text-xl font-cinzel text-amber-500">Current Rates</CardTitle>
+                    <CardTitle className="text-xl font-cinzel text-amber-500">الأسعار الحالية</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
@@ -238,10 +238,10 @@ export function ShippingSettings({ userId }: { userId: string }) {
                         <Table>
                             <TableHeader>
                                 <TableRow className="border-amber-200/20 hover:bg-transparent">
-                                    <TableHead className="text-amber-500">Region</TableHead>
-                                    <TableHead className="text-amber-500">Cost</TableHead>
-                                    <TableHead className="text-amber-500">Delivery</TableHead>
-                                    <TableHead className="text-right text-amber-500">Actions</TableHead>
+                                    <TableHead className="text-amber-500">المنطقة</TableHead>
+                                    <TableHead className="text-amber-500">التكلفة</TableHead>
+                                    <TableHead className="text-amber-500">التوصيل</TableHead>
+                                    <TableHead className="text-right text-amber-500">إجراءات</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -249,7 +249,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                                     <TableRow key={rate.id} className="border-amber-200/20 hover:bg-amber-500/10">
                                         <TableCell className="font-medium">{rate.regionName}</TableCell>
                                         <TableCell>{rate.amount} EGP</TableCell>
-                                        <TableCell>{rate.deliveryTimeMin}-{rate.deliveryTimeMax} Days</TableCell>
+                                        <TableCell>{rate.deliveryTimeMin}-{rate.deliveryTimeMax} أيام</TableCell>
                                         <TableCell className="text-right">
                                             <Button
                                                 variant="ghost"
@@ -267,7 +267,7 @@ export function ShippingSettings({ userId }: { userId: string }) {
                         </Table>
                     ) : (
                         <p className="text-center text-muted-foreground p-4">
-                            No shipping rates defined yet. Default rates may apply if you rely on platform defaults.
+                            لم يتم تحديد أسعار شحن بعد. قد تُطبق الأسعار الافتراضية إذا كنت تعتمد على إعدادات المنصة الافتراضية.
                         </p>
                     )}
                 </CardContent>

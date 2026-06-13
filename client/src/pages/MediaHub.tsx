@@ -10,10 +10,10 @@ import { SEO } from "@/components/SEO";
 import { Link } from "wouter";
 
 const CATEGORIES = [
-  { id: 'trailer', label: 'Trailers', icon: Film },
-  { id: 'song', label: 'Original Songs', icon: Music },
-  { id: 'universe', label: 'Universe Lore', icon: Star },
-  { id: 'announcement', label: 'Announcements', icon: Mic2 }
+  { id: 'trailer', label: 'مقاطع دعائية', icon: Film },
+  { id: 'song', label: 'أغاني أصلية', icon: Music },
+  { id: 'universe', label: 'قصص الكون', icon: Star },
+  { id: 'announcement', label: 'إعلانات', icon: Mic2 }
 ];
 
 export default function MediaHub() {
@@ -26,11 +26,11 @@ export default function MediaHub() {
     return allVideos?.filter(v => v.category === category) || [];
   };
 
-  if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading Universe...</div>;
+  if (isLoading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">جارٍ تحميل الكون...</div>;
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-black">
-      <SEO title="Media Hub | Cinematic Universe" description="Explore trailers, songs, and cinematic content from the Hekayaty Universe." />
+      <SEO title="مركز الوسائط | الكون السينمائي" description="استكشف المقاطع الدعائية، الأغاني، والمحتوى السينمائي من كون حكاياتي." />
       <Navbar />
 
       <main className="pb-20">
@@ -61,14 +61,14 @@ export default function MediaHub() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <div className="flex items-center gap-3 mb-4">
-                   <span className="px-3 py-1 bg-primary text-black text-[10px] font-black uppercase tracking-widest rounded">Featured Content</span>
-                   <span className="text-white/60 text-xs font-bold uppercase tracking-widest">{featuredVideo.category}</span>
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4 flex-wrap">
+                   <span className="px-2 sm:px-3 py-1 bg-primary text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest rounded">محتوى مميز</span>
+                   <span className="text-white/60 text-[10px] sm:text-xs font-bold uppercase tracking-widest">{featuredVideo.category}</span>
                 </div>
-                <h1 className="text-5xl md:text-7xl font-serif font-black text-white mb-4 leading-tight drop-shadow-2xl">
+                <h1 className="text-3xl sm:text-5xl md:text-7xl font-serif font-black text-white mb-2 sm:mb-4 leading-tight drop-shadow-2xl">
                   {featuredVideo.title}
                 </h1>
-                <p className="text-lg text-white/70 max-w-2xl line-clamp-3 mb-8 font-medium">
+                <p className="text-sm sm:text-lg text-white/70 max-w-2xl line-clamp-3 mb-6 sm:mb-8 font-medium">
                   {featuredVideo.description}
                 </p>
 
@@ -78,7 +78,7 @@ export default function MediaHub() {
                     className="h-14 px-10 rounded-xl bg-white text-black hover:bg-white/90 font-black text-lg gap-3 transition-transform hover:scale-105"
                   >
                     <Play size={24} fill="black" />
-                    Watch Now
+                    شاهد الآن
                   </Button>
                 </div>
               </motion.div>
@@ -89,14 +89,14 @@ export default function MediaHub() {
              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-6 border border-primary/20">
                 <Film className="w-10 h-10 text-primary animate-pulse" />
              </div>
-             <h2 className="text-4xl font-serif font-black mb-4">The Cinematic Universe is Expanding</h2>
+             <h2 className="text-4xl font-serif font-black mb-4">الكون السينمائي يتسع</h2>
              <p className="text-white/50 max-w-md mx-auto">
-                We're currently preparing the latest trailers and original songs for the Hekayaty universe. Check back soon!
+                نحن نقوم حالياً بتحضير أحدث المقاطع الدعائية والأغاني الأصلية لكون حكاياتي. عد قريباً!
              </p>
              {/* Admin Shortcut */}
              <Link href="/admin?tab=media">
                <Button variant="link" className="mt-8 text-primary/50 hover:text-primary">
-                 Admin: Add content to Media Hub
+                 المسؤول: أضف محتوى لمركز الوسائط
                </Button>
              </Link>
           </section>
@@ -174,7 +174,7 @@ function VideoCard({ video, onClick }: { video: any, onClick: () => void }) {
           {video.title}
         </p>
         <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          Watch Now
+          شاهد الآن
         </p>
       </div>
     </motion.div>
@@ -222,7 +222,7 @@ function VideoModal({ video, onClose }: { video: any, onClose: () => void }) {
               {video.relatedStoryId && (
                 <Link href={`/product/${video.relatedStoryId}`}>
                   <Button className="bg-primary text-black font-black uppercase tracking-tighter gap-2 px-6 h-12 rounded-xl hover:scale-105 transition-all">
-                    Discover the Story
+                    اكتشف القصة
                     <ChevronRight size={18} />
                   </Button>
                 </Link>

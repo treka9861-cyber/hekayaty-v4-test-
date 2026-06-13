@@ -8,10 +8,20 @@ import {
   type MediaVideo, type InsertMediaVideo
 } from "@shared/schema";
 import session from "express-session";
+import { RedisStore } from "connect-redis";
 import createMemoryStore from "memorystore";
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { serverCache } from './cache';
 
+// Graceful fallback: If Redis is not available, use MemoryStore
 const MemoryStore = createMemoryStore(session);
+
+const redisClient = serverCache.getRawClient();
+
+// Create the session store, preferring Redis if initialized
+const sessionStore = redisClient 
+  ? new RedisStore({ client: redisClient, prefix: "hekayaty:session:" }) 
+  : new MemoryStore({ checkPeriod: 86400000 });
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -102,20 +112,18 @@ export interface IStorage {
   updateNotificationSettings(userId: string, updates: Partial<NotificationSettings>): Promise<NotificationSettings>;
 
   // Media Hub
-  getMediaVideos(filters?: { category?: string; isFeatured?: boolean; relatedStoryId?: number }): Promise<MediaVideo[]>;
+  getMediaVideos(filters?: { category?: string; isFeatured?: boolean; relatedStoryId?: number; creatorId?: string }): Promise<MediaVideo[]>;
   getMediaVideo(id: string): Promise<MediaVideo | undefined>;
   createMediaVideo(video: InsertMediaVideo & { youtubeVideoId: string; thumbnailUrl: string; createdBy: string }): Promise<MediaVideo>;
   updateMediaVideo(id: string, video: Partial<InsertMediaVideo & { youtubeVideoId: string; thumbnailUrl: string }>): Promise<MediaVideo>;
   deleteMediaVideo(id: string): Promise<void>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class SupabaseStorage implements IStorage {
   sessionStore: session.Store;
 
   constructor() {
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
-    });
+    this.sessionStore = sessionStore;
   }
 
   // User
@@ -132,9 +140,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listWriters(): Promise<User[]> {
-    const { data, error } = await supabaseAdmin.from('users').select('*').in('role', ['writer', 'artist']);
+    const cached = await serverCache.get<User[]>('writers_list');
+    if (cached) return cached;
+
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('id, username, display_name, avatar_url, banner_url, bio, role, is_active, created_at')
+      .in('role', ['writer', 'artist']);
+
     if (error || !data) return [];
-    return data as User[];
+    
+    // Map snake_case back to camelCase for the frontend
+    const writers = data.map(u => ({
+      ...u,
+      displayName: u.display_name,
+      avatarUrl: u.avatar_url,
+      bannerUrl: u.banner_url,
+      isActive: u.is_active,
+      createdAt: u.created_at
+    })) as unknown as User[];
+
+    await serverCache.set('writers_list', writers, 120); // 120s TTL
+    return writers;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -150,12 +177,20 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
     const { data, error } = await supabaseAdmin.from('users').update(updates).eq('id', id).select().single();
     if (error) throw error;
+    await serverCache.clear(); // Invalidate cache to refresh writers list
     return data as User;
   }
 
   // Products
   async getProducts(filters?: { writerId?: string; genre?: string; search?: string; type?: string; isPublished?: boolean }): Promise<Product[]> {
-    let query = supabaseAdmin.from('products').select('*');
+    // Generate deterministic cache key based on filters
+    const cacheKey = `products_${JSON.stringify(filters || {})}`;
+    const cached = await serverCache.get<Product[]>(cacheKey);
+    if (cached) return cached;
+
+    // Optimiziation: Omit `content` and `file_url` fields for list views to prevent memory bloat and massive payloads
+    // We alias the columns to camelCase so they perfectly match the Drizzle `Product` type (fixing TS errors and frontend bugs).
+    let query = supabaseAdmin.from('products').select('id, writerId:writer_id, title, description, coverUrl:cover_url, type, genre, isPublished:is_published, rating, reviewCount:review_count, price, salePrice:sale_price, discountPercentage:discount_percentage, saleEndsAt:sale_ends_at, stockQuantity:stock_quantity, weight, requiresShipping:requires_shipping, salesCount:sales_count, isSerialized:is_serialized, seriesStatus:series_status, lastChapterUpdatedAt:last_chapter_updated_at, merchandiseCategory:merchandise_category, createdAt:created_at, updatedAt:updated_at');
     if (filters?.writerId) query = query.eq('writer_id', filters.writerId);
     if (filters?.genre) query = query.eq('genre', filters.genre);
     if (filters?.type) query = query.eq('type', filters.type);
@@ -164,7 +199,10 @@ export class DatabaseStorage implements IStorage {
 
     const { data, error } = await query;
     if (error || !data) return [];
-    return data as Product[];
+    
+    const products = data as unknown as Product[];
+    await serverCache.set(cacheKey, products, 60); // 60s TTL
+    return products;
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
@@ -179,12 +217,14 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date()
     }).select().single();
     if (error) throw error;
+    await serverCache.clear(); // Invalidate cache
     return data as Product;
   }
 
   async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product> {
     const { data, error } = await supabaseAdmin.from('products').update(product).eq('id', id).select().single();
     if (error) throw error;
+    await serverCache.clear(); // Invalidate cache
     return data as Product;
   }
 
@@ -195,6 +235,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Cannot delete product with existing sales");
     }
     await supabaseAdmin.from('products').delete().eq('id', id);
+    await serverCache.clear(); // Invalidate cache
   }
 
   // Variants
@@ -593,12 +634,21 @@ export class DatabaseStorage implements IStorage {
 
   // --- Media Hub Implementation ---
 
-  async getMediaVideos(filters?: { category?: string; isFeatured?: boolean; relatedStoryId?: number }): Promise<MediaVideo[]> {
+  async getMediaVideos(filters?: { category?: string; isFeatured?: boolean; relatedStoryId?: number; creatorId?: string }): Promise<MediaVideo[]> {
     let query = supabaseAdmin.from('media_videos').select('*');
     
     if (filters?.category) query = query.eq('category', filters.category);
     if (filters?.isFeatured !== undefined) query = query.eq('is_featured', filters.isFeatured);
     if (filters?.relatedStoryId) query = query.eq('related_story_id', filters.relatedStoryId);
+    if (filters?.creatorId) {
+      const { data: creatorProducts } = await supabaseAdmin.from('products').select('id').eq('writer_id', filters.creatorId);
+      const productIds = creatorProducts?.map(p => p.id) || [];
+      if (productIds.length > 0) {
+        query = query.or(`created_by.eq.${filters.creatorId},related_story_id.in.(${productIds.join(',')})`);
+      } else {
+        query = query.eq('created_by', filters.creatorId);
+      }
+    }
     
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
@@ -701,4 +751,4 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new SupabaseStorage();

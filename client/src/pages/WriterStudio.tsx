@@ -27,7 +27,8 @@ import {
     AlertCircle,
     Sparkles,
     LayoutGrid,
-    Library
+    Library,
+    Search
 } from "lucide-react";
 import { Link, useRoute, useLocation, Redirect } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,6 +47,7 @@ export default function WriterStudio() {
     const selectedCollectionId = params?.id?.startsWith('c-') ? params.id.replace('c-', '') : null;
 
     const [viewMode, setViewMode] = useState<'stories' | 'collections'>(selectedCollectionId ? 'collections' : 'stories');
+    const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("write");
     const [content, setContent] = useState("");
     const [title, setTitle] = useState("");
@@ -81,6 +83,14 @@ export default function WriterStudio() {
     const updateChapter = useUpdateChapter();
     const deleteChapter = useDeleteChapter();
     const deleteProduct = useDeleteProduct();
+
+    const filteredProducts = products?.filter((p: any) => 
+        p.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+
+    const filteredCollections = collections?.filter((c: any) => 
+        c.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
 
     const [activeChapterId, setActiveChapterId] = useState<number | null>(null);
 
@@ -140,8 +150,8 @@ export default function WriterStudio() {
     const handleCreateNewStory = () => {
         createProduct.mutate({
             writerId: user?.id,
-            title: "Untitled Journey",
-            description: "A new story begins...",
+            title: "رحلة غير معنونة",
+            description: "قصة جديدة تبدأ...",
             content: "",
             type: "ebook",
             genre: "Fantasy",
@@ -247,13 +257,25 @@ export default function WriterStudio() {
                                     {t("studio.createNew")}
                                 </Button>
 
-                                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2 mb-4 opacity-50">
+                                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2 opacity-50">
                                     {t("studio.masterpieces")}
+                                </div>
+
+                                <div className="mb-4 relative">
+                                    <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        placeholder={t("studio.search") || "Search stories..."}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="bg-white/5 border-white/10 pr-9 focus:ring-primary/20 h-10 text-sm"
+                                    />
                                 </div>
 
                                 {productsLoading ? (
                                     <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
-                                ) : products?.map((p: any) => (
+                                ) : filteredProducts.length === 0 && searchQuery ? (
+                                    <div className="text-center py-6 text-muted-foreground text-sm">لم يتم العثور على قصص.</div>
+                                ) : filteredProducts.map((p: any) => (
                                     <button
                                         key={p.id}
                                         onClick={() => setLocation(`/studio/${p.id}`)}
@@ -289,13 +311,25 @@ export default function WriterStudio() {
                                     {t("studio.collections.new")}
                                 </Button>
 
-                                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2 mb-4 opacity-50">
+                                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2 opacity-50">
                                     {t("studio.collections.list")}
+                                </div>
+
+                                <div className="mb-4 relative">
+                                    <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                    <Input
+                                        placeholder={t("studio.searchCollections") || "Search collections..."}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="bg-white/5 border-white/10 pr-9 focus:ring-secondary/20 h-10 text-sm"
+                                    />
                                 </div>
 
                                 {collectionsLoading ? (
                                     <div className="flex justify-center p-8"><Loader2 className="animate-spin text-secondary" /></div>
-                                ) : collections?.map((c: any) => (
+                                ) : filteredCollections.length === 0 && searchQuery ? (
+                                    <div className="text-center py-6 text-muted-foreground text-sm">لم يتم العثور على مجموعات.</div>
+                                ) : filteredCollections.map((c: any) => (
                                     <button
                                         key={c.id}
                                         onClick={() => setLocation(`/studio/c-${c.id}`)}
@@ -489,7 +523,7 @@ export default function WriterStudio() {
                                                                     className="bg-transparent border-none text-4xl font-serif font-bold w-full focus:outline-none placeholder:text-muted-foreground/20 text-gradient mb-8"
                                                                     value={chapters?.find((c: any) => c.id === activeChapterId)?.title || ""}
                                                                     onChange={(e) => updateChapter.mutate({ id: activeChapterId, title: e.target.value })}
-                                                                    placeholder="Untitled Chapter"
+                                                                    placeholder="فصل غير معنون"
                                                                 />
                                                                 <Textarea
                                                                     value={content}

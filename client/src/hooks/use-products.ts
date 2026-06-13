@@ -46,7 +46,7 @@ export function useProducts(filters?: { writerId?: string; genre?: string; searc
     queryFn: async () => {
       let query = supabase
         .from('products')
-        .select('*, users!writer_id(display_name)')
+        .select('id, writer_id, title, description, cover_url, type, genre, is_published, rating, review_count, price, stock_quantity, weight, requires_shipping, created_at, is_serialized, series_status, last_chapter_updated_at, merchandise_category, users!writer_id(display_name)')
         .order('created_at', { ascending: false });
 
       if (filters?.writerId) query = query.eq('writer_id', filters.writerId);
@@ -69,7 +69,7 @@ export function useProducts(filters?: { writerId?: string; genre?: string; searc
       const { data, error } = await query;
       if (error) throw error;
 
-      return data.map(mapProduct);
+      return data.map((p: any) => mapProduct(p as ProductRow));
     },
   });
 }
@@ -80,13 +80,14 @@ export function useBestSellerProducts(limit = 4) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('id, writer_id, title, description, cover_url, type, genre, is_published, rating, review_count, price, stock_quantity, weight, requires_shipping, created_at, is_serialized, series_status, last_chapter_updated_at, merchandise_category')
         .order('review_count', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
-      return data.map(mapProduct);
+      return data.map((p: any) => mapProduct(p as ProductRow));
     },
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
@@ -96,15 +97,16 @@ export function useSerializedProducts(limit = 4) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('id, writer_id, title, description, cover_url, type, genre, is_published, rating, review_count, price, stock_quantity, weight, requires_shipping, created_at, is_serialized, series_status, last_chapter_updated_at, merchandise_category')
         .eq('is_serialized', true)
         .eq('is_published', true)
         .order('last_chapter_updated_at', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
-      return data.map(mapProduct);
+      return data.map((p: any) => mapProduct(p as ProductRow));
     },
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 
@@ -171,7 +173,7 @@ export function useCreateProduct() {
         // Physical fields
         stock_quantity: data.stockQuantity,
         weight: data.weight,
-        requires_shipping: data.requiresShipping,
+        requires_shipping: ['ebook', 'audiobook', 'comic'].includes(data.type) ? false : data.requiresShipping,
         appearance_settings: data.appearanceSettings,
         is_serialized: data.isSerialized,
         series_status: data.seriesStatus,
@@ -200,6 +202,7 @@ export function useCreateProduct() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-stats"] });
       toast({ title: "Product created successfully" });
     },
     onError: (err) => {
@@ -227,7 +230,19 @@ export function useUpdateProduct() {
       // Physical fields
       if (data.stockQuantity !== undefined) dbData.stock_quantity = data.stockQuantity;
       if (data.weight !== undefined) dbData.weight = data.weight;
-      if (data.requiresShipping !== undefined) dbData.requires_shipping = data.requiresShipping;
+      // For digital products, force requires_shipping to false. 
+      // If type isn't provided in the update payload, fetch it to be safe.
+      let productType = data.type;
+      if (!productType) {
+        const { data: existing } = await supabase.from('products').select('type').eq('id', id).single();
+        productType = existing?.type;
+      }
+
+      if (data.requiresShipping !== undefined) {
+        dbData.requires_shipping = ['ebook', 'audiobook', 'comic'].includes(productType) ? false : data.requiresShipping;
+      } else if (productType && ['ebook', 'audiobook', 'comic'].includes(productType)) {
+        dbData.requires_shipping = false;
+      }
       if (data.appearanceSettings) dbData.appearance_settings = data.appearanceSettings;
       if (data.isSerialized !== undefined) dbData.is_serialized = data.isSerialized;
       if (data.seriesStatus) dbData.series_status = data.seriesStatus;
@@ -262,6 +277,7 @@ export function useUpdateProduct() {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["product", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["product-content", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["platform-stats"] });
       toast({ title: "Product updated" });
     },
   });
@@ -277,6 +293,7 @@ export function useDeleteProduct() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["platform-stats"] });
       toast({ title: "Product deleted" });
     },
     onError: (err: Error) => {

@@ -5,6 +5,7 @@
 
 import { queryClient } from './queryClient';
 import { supabase } from '@/lib/supabase';
+import { apiRequest } from '@/lib/queryClient';
 import { optimizeImage, prefetchImage } from './performance-core';
 import { persistence } from './persistence';
 
@@ -32,39 +33,30 @@ export const preloadWritersDashboard = async () => {
       queryClient.prefetchQuery({
         queryKey: ["/api/products", { writerId: userId }],
         queryFn: async () => {
-          const { data } = await supabase.from('products').select('*').eq('writer_id', userId);
+          const { data } = await supabase.from('products').select('id, writer_id, title, cover_url, price, is_published, type, sales_count').eq('writer_id', userId);
           return data;
         },
         staleTime: 60 * 1000
       }),
 
-      // Earnings Overview (Instant state from local or revalidate)
+      // Earnings Overview — now via Express backend
       queryClient.prefetchQuery({
         queryKey: ['earnings-overview', userId],
         queryFn: async () => {
-          const { data } = await supabase.functions.invoke('earnings-overview', { 
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            }
-          });
+          const res = await apiRequest('GET', '/api/edge/earnings-overview');
+          const data = await res.json();
           persistence.set(`query:earnings-overview:${userId}`, data).catch(console.error);
           return data;
         },
         staleTime: 30 * 1000
       }),
 
-      // Seller Orders
+      // Seller Orders — now via Express backend
       queryClient.prefetchQuery({
         queryKey: ['seller-orders'],
         queryFn: async () => {
-          const { data } = await supabase.functions.invoke('seller-orders', { 
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            }
-          });
-          return data;
+          const res = await apiRequest('GET', '/api/edge/seller-orders');
+          return await res.json();
         }
       })
     ];

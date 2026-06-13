@@ -108,10 +108,10 @@ export default function Cart() {
     };
 
     const paymentInstructions: Record<string, any> = {
-        instapay: { title: t('checkout.payment.instapay'), details: "Transfer to: 01272404623", icon: Smartphone, color: "text-purple-600", disabled: false },
-        vodafone_cash: { title: `Vodafone Cash (${t('common.soon')})`, details: t('common.integrationInProgress'), icon: Smartphone, color: "text-red-600", disabled: true },
-        orange_cash: { title: `Orange Cash (${t('common.soon')})`, details: t('common.integrationInProgress'), icon: Smartphone, color: "text-orange-600", disabled: true },
-        etisalat_cash: { title: `Etisalat Cash (${t('common.soon')})`, details: t('common.integrationInProgress'), icon: Smartphone, color: "text-green-600", disabled: true },
+        instapay: { title: t('checkout.payment.instapay'), details: "التحويل إلى: 01272404623", icon: Smartphone, color: "text-purple-600", disabled: false },
+        vodafone_cash: { title: `فودافون كاش (${t('common.soon')})`, details: t('common.integrationInProgress'), icon: Smartphone, color: "text-red-600", disabled: true },
+        orange_cash: { title: `أورانج كاش (${t('common.soon')})`, details: t('common.integrationInProgress'), icon: Smartphone, color: "text-orange-600", disabled: true },
+        etisalat_cash: { title: `اتصالات كاش (${t('common.soon')})`, details: t('common.integrationInProgress'), icon: Smartphone, color: "text-green-600", disabled: true },
         bank_transfer: { title: `${t('checkout.payment.card')} (${t('common.soon')})`, details: t('common.comingSoon'), icon: Banknote, color: "text-blue-600", disabled: true }
     };
     const selectedMethodInfo = paymentInstructions[paymentMethod];
@@ -432,8 +432,7 @@ function CartItemRow({ item, onUpdate, onRemove }: any) {
                     {item.product?.salePrice && item.product.salePrice < item.product.price ? (
                         <div className="flex items-center gap-2">
                             <span className="text-primary">{item.product.salePrice} <span className="text-xs font-normal">{t('common.egp')}</span></span>
-                            <span className="text-muted-foreground text-xs line-through opacity-50">{item.product.price} {t('common.egp')}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse">{t('common.offer') || 'OFFER'}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500 text-white animate-pulse">{t('common.offer') || 'عرض'}</span>
                         </div>
                     ) : (
                         <span className="text-primary">

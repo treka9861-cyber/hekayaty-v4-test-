@@ -124,8 +124,8 @@ export function DesignRequestDialog({ artistId, artistName, isOpen, onOpenChange
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="personal">Personal Use</SelectItem>
-                                    <SelectItem value="commercial">Commercial Rights</SelectItem>
+                                    <SelectItem value="personal">استخدام شخصي</SelectItem>
+                                    <SelectItem value="commercial">حقوق تجارية</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -146,7 +146,7 @@ export function DesignRequestDialog({ artistId, artistName, isOpen, onOpenChange
                     </div>
 
                     <DialogFooter className="pt-4">
-                        <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>إلغاء</Button>
                         <Button type="submit" disabled={createRequest.isPending} className="bg-primary hover:bg-primary/90 font-bold px-8 shadow-lg shadow-primary/20">
                             {createRequest.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Send Request"}
                         </Button>

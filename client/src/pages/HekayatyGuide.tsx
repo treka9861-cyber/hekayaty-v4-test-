@@ -45,8 +45,7 @@ export default function HekayatyGuide() {
     return (
         <div className="min-h-screen bg-[#0a0a0b]">
             <SEO
-                title={t("guide.pageTitle")}
-                description="Learn how to use Hekayaty for writers and readers. Guides for publishing, buying, shipping, and community rules."
+                description="تعلم كيفية استخدام حكاياتي للكتاب والقراء. أدلة النشر، الشراء، الشحن، وقواعد المجتمع."
             />
             <Navbar />
 

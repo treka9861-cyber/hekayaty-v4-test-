@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { callEdgeFunction } from "./use-edge-functions";
+import { useTranslation } from "react-i18next";
 
 /**
  * Fetches the current user's orders by querying Supabase directly.
@@ -12,6 +14,7 @@ import { supabase } from "@/lib/supabase";
  * We use the service role path for items via a manual join.
  */
 export function useUserOrders() {
+    const { t } = useTranslation();
     return useQuery({
         queryKey: ["/api/orders/user"],
         queryFn: async () => {
@@ -89,6 +92,7 @@ export function useUserOrders() {
                     .filter((i: any) => i.order_id === order.id)
                     .map((item: any) => {
                         const isCollection = !!item.collection_id;
+                        const isSubscription = !item.product_id && !item.collection_id;
                         return {
                             id: item.id,
                             orderId: order.id,
@@ -98,23 +102,29 @@ export function useUserOrders() {
                             fulfillmentStatus: item.fulfillment_status || 'pending',
                             trackingNumber: item.tracking_number || null,
                             estimatedDeliveryDays: item.estimated_delivery_days || null,
-                            makerName: creatorsMap[item.creator_id] || 'Unknown Maker',
+                            makerName: creatorsMap[item.creator_id] || null,
                             shippedAt: item.shipped_at || null,
                             acceptedAt: item.accepted_at || null,
+                            isSubscription,
                             product: {
                                 id: item.product_id,
                                 collectionId: item.collection_id,
-                                title: isCollection
+                                title: isSubscription
+                                    ? t("writerStore.membershipPlanTitle", "👑 Membership Plan")
+                                    : isCollection
                                     ? (item.collection?.title || 'Collection')
                                     : (item.product?.title || 'Unknown Product'),
-                                coverUrl: isCollection
+                                coverUrl: isSubscription
+                                    ? ''
+                                    : isCollection
                                     ? (item.collection?.cover_image_url || '')
                                     : (item.product?.cover_url || ''),
-                                type: isCollection ? 'collection' : (item.product?.type || 'unknown'),
+                                type: isSubscription ? 'membership' : isCollection ? 'collection' : (item.product?.type || 'unknown'),
                                 genre: null,
                                 description: null
                             }
                         };
+
                     });
 
                 return {
@@ -138,3 +148,16 @@ export function useUserOrders() {
         refetchOnMount: 'always'
     });
 }
+
+export function useUserSubscriptions() {
+    return useQuery({
+        queryKey: ['/api/edge/get-user-subscriptions'],
+        queryFn: async () => {
+            return callEdgeFunction('get-user-subscriptions', {});
+        },
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: 'always'
+    });
+}
+

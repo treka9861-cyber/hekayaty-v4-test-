@@ -18,32 +18,32 @@ export function Footer() {
               <span className="font-serif text-xl font-bold">Hekayaty</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              {t("footer.aboutText", "Empowering storytellers to build their worlds and share them with the universe.")}
+              {t("footer.aboutText", "نمكّن كل قاص من بناء عوالمه ومشاركتها مع الكون.")}
             </p>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">{t("footer.quickLinks", "Platform")}</h4>
+            <h4 className="font-semibold mb-4 text-foreground">{t("footer.quickLinks", "المنصة")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/about" className="hover:text-primary">{t("nav.about", "Who Are We")}</Link></li>
-              <li><Link href="/blog" className="hover:text-primary">{t("nav.blog", "Stories & Guides")}</Link></li>
-              <li><Link href="/contact" className="hover:text-primary">{t("nav.contact", "Contact Us")}</Link></li>
-              <li><Link href="/marketplace" className="hover:text-primary">{t("nav.marketplace", "Marketplace")}</Link></li>
-              <li><Link href="/studio" className="hover:text-primary">{t("nav.studio", "Writer Studio")}</Link></li>
-              <li><Link href="/worldbuilders" className="hover:text-primary">{t("nav.worldbuilders", "Worldbuilders")}</Link></li>
+              <li><Link href="/about" className="hover:text-primary">{t("nav.about", "من نحن")}</Link></li>
+              <li><Link href="/blog" className="hover:text-primary">{t("nav.blog", "قصص وأدلة")}</Link></li>
+              <li><Link href="/contact" className="hover:text-primary">{t("nav.contact", "تواصل معنا")}</Link></li>
+              <li><Link href="/marketplace" className="hover:text-primary">{t("nav.marketplace", "المتجر")}</Link></li>
+              <li><Link href="/studio" className="hover:text-primary">{t("nav.studio", "استوديو الكاتب")}</Link></li>
+              <li><Link href="/worldbuilders" className="hover:text-primary">{t("nav.worldbuilders", "بناة العوالم")}</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">{t("footer.legal", "Legal")}</h4>
+            <h4 className="font-semibold mb-4 text-foreground">{t("footer.legal", "القانونية")}</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/legal" className="hover:text-primary">{t("footer.terms", "Terms of Service")}</Link></li>
-              <li><Link href="/legal" className="hover:text-primary">{t("footer.privacy", "Privacy Policy")}</Link></li>
+              <li><Link href="/legal" className="hover:text-primary">{t("footer.terms", "شروط الخدمة")}</Link></li>
+              <li><Link href="/legal" className="hover:text-primary">{t("footer.privacy", "سياسة الخصوصية")}</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">{t("footer.followUs", "Follow Us")}</h4>
+            <h4 className="font-semibold mb-4 text-foreground">{t("footer.followUs", "تابعنا")}</h4>
             <div className="flex gap-4">
               <a
                 href="https://www.facebook.com/share/1JgtgTtMiv/"
@@ -105,7 +105,7 @@ export function Footer() {
           
           <div className="text-center space-y-2">
             <p className="text-[10px] text-white/30 uppercase tracking-widest">
-              © {new Date().getFullYear()} Hekayaty Platform. {t("footer.copyright", "All rights reserved.")}
+              © {new Date().getFullYear()} Hekayaty Platform. {t("footer.copyright", "جميع الحقوق محفوظة.")}
             </p>
           </div>
         </div>

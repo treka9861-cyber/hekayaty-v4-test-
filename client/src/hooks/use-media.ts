@@ -3,11 +3,12 @@ import { apiRequest } from "@/lib/queryClient";
 import type { MediaVideo, InsertMediaVideo } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
-export function useMediaVideos(filters?: { category?: string; isFeatured?: boolean; relatedStoryId?: number }) {
+export function useMediaVideos(filters?: { category?: string; isFeatured?: boolean; relatedStoryId?: number; creatorId?: string }) {
   const queryParams = new URLSearchParams();
   if (filters?.category) queryParams.append('category', filters.category);
   if (filters?.isFeatured !== undefined) queryParams.append('isFeatured', String(filters.isFeatured));
   if (filters?.relatedStoryId) queryParams.append('relatedStoryId', String(filters.relatedStoryId));
+  if (filters?.creatorId) queryParams.append('creatorId', filters.creatorId);
 
   return useQuery<MediaVideo[]>({
     queryKey: ["media-videos", filters],

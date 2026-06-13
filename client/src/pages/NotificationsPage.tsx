@@ -73,20 +73,20 @@ export default function NotificationsPage() {
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
                     <div>
                         <h1 className="font-serif text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent mb-2">
-                            {t("notifications.pageTitle", "Notifications Center")}
+                            {t("notifications.pageTitle", "مركز الإشعارات")}
                         </h1>
                         <p className="text-muted-foreground max-w-lg">
-                            {t("notifications.pageSubtitle", "Stay updated with your orders, sales, and community interactions.")}
+                            {t("notifications.pageSubtitle", "ابق مطلعاً على طلباتك، مبيعاتك، وتفاعلات مجتمعك.")}
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
                         <Button variant="outline" size="sm" onClick={() => markAllRead()} className="bg-white/5 border-white/10 hover:bg-white/10">
                             <Check className="w-4 h-4 mr-2" />
-                            {t("notifications.markAllRead", "Mark All Read")}
+                            {t("notifications.markAllRead", "تحديد الكل كمقروء")}
                         </Button>
                         <Button variant="outline" size="sm" className="bg-white/5 border-white/10 hover:bg-white/10">
                             <Settings className="w-4 h-4 mr-2" />
-                            {t("notifications.settings", "Settings")}
+                            {t("notifications.settings", "الإعدادات")}
                         </Button>
                     </div>
                 </div>
@@ -96,7 +96,7 @@ export default function NotificationsPage() {
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
-                            placeholder={t("notifications.searchPlaceholder", "Search notifications...")}
+                            placeholder={t("notifications.searchPlaceholder", "ابحث في الإشعارات...")}
                             className="pl-10 bg-white/5 border-white/10 focus:ring-primary/20"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -109,22 +109,22 @@ export default function NotificationsPage() {
                     <div className="overflow-x-auto pb-2 mb-4 scrollbar-hide">
                         <TabsList className="bg-white/5 border border-white/10 p-1 w-full sm:w-auto h-auto min-w-max">
                             <TabsTrigger value="all" className="px-5 py-2 data-[state=active]:bg-primary data-[state=active]:text-white uppercase tracking-tighter text-[10px] font-bold">
-                                {t("notifications.filter.all", "All")}
+                                {t("notifications.filter.all", "الكل")}
                             </TabsTrigger>
                             <TabsTrigger value="unread" className="px-5 py-2 data-[state=active]:bg-primary data-[state=active]:text-white uppercase tracking-tighter text-[10px] font-bold">
-                                {t("notifications.filter.unread", "Unread")}
+                                {t("notifications.filter.unread", "غير مقروء")}
                             </TabsTrigger>
                             <TabsTrigger value="commerce" className="px-5 py-2 data-[state=active]:bg-primary data-[state=active]:text-white uppercase tracking-tighter text-[10px] font-bold">
-                                {t("notifications.filter.commerce", "Commerce")}
+                                {t("notifications.filter.commerce", "التجارة")}
                             </TabsTrigger>
                             <TabsTrigger value="social" className="px-5 py-2 data-[state=active]:bg-primary data-[state=active]:text-white uppercase tracking-tighter text-[10px] font-bold">
-                                {t("notifications.filter.social", "Social")}
+                                {t("notifications.filter.social", "اجتماعي")}
                             </TabsTrigger>
                             <TabsTrigger value="creator" className="px-5 py-2 data-[state=active]:bg-primary data-[state=active]:text-white uppercase tracking-tighter text-[10px] font-bold">
-                                {t("notifications.filter.creator", "Creator")}
+                                {t("notifications.filter.creator", "صانع محتوى")}
                             </TabsTrigger>
                             <TabsTrigger value="store" className="px-5 py-2 data-[state=active]:bg-primary data-[state=active]:text-white uppercase tracking-tighter text-[10px] font-bold">
-                                {t("notifications.filter.store", "Store")}
+                                {t("notifications.filter.store", "المتجر")}
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -134,15 +134,15 @@ export default function NotificationsPage() {
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center p-20 gap-4">
                                     <div className="w-10 h-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                                    <p className="text-muted-foreground animate-pulse">{t("common.loading", "Loading notifications...")}</p>
+                                    <p className="text-muted-foreground animate-pulse">{t("common.loading", "جارٍ تحميل الإشعارات...")}</p>
                                 </div>
                             ) : filteredNotifications.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center p-20 text-center">
                                     <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
                                         <BellOff className="w-10 h-10 text-muted-foreground/20" />
                                     </div>
-                                    <h3 className="text-xl font-bold mb-2 text-foreground/80">{t("notifications.emptyTitle", "Peace and Quiet")}</h3>
-                                    <p className="text-muted-foreground max-w-xs">{t("notifications.emptyDescription", "You don't have any notifications in this category right now.")}</p>
+                                    <h3 className="text-xl font-bold mb-2 text-foreground/80">{t("notifications.emptyTitle", "هدوء وسلام")}</h3>
+                                    <p className="text-muted-foreground max-w-xs">{t("notifications.emptyDescription", "لا توجد لديك أي إشعارات في هذه الفئة حالياً.")}</p>
                                 </div>
                             ) : (
                                 <div className="flex flex-col">
@@ -175,7 +175,7 @@ export default function NotificationsPage() {
                                                         </h4>
                                                         {n.priority === 'high' && (
                                                             <Badge className="bg-primary hover:bg-primary text-white text-[10px] animate-pulse">
-                                                                {t("notifications.priority.high", "Urgent")}
+                                                                {t("notifications.priority.high", "عاجل")}
                                                             </Badge>
                                                         )}
                                                         {!n.isRead && (
@@ -197,7 +197,7 @@ export default function NotificationsPage() {
                                                             variant="link"
                                                             className="p-0 h-auto text-primary font-bold text-xs uppercase tracking-widest group-hover:translate-x-1 transition-transform"
                                                         >
-                                                            {t("common.viewDetails", "View Details")}
+                                                            {t("common.viewDetails", "عرض التفاصيل")}
                                                             <ChevronRight className="w-3 h-3 ml-1" />
                                                         </Button>
                                                     )}
@@ -215,11 +215,11 @@ export default function NotificationsPage() {
                                                     <DropdownMenuContent align="end" className="bg-[#1a0f0a] border-white/10">
                                                         {!n.isRead && (
                                                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); markRead(n.id); }}>
-                                                                <Check className="w-4 h-4 mr-2" /> {t("notifications.markAsRead", "Mark as Read")}
+                                                                <Check className="w-4 h-4 mr-2" /> {t("notifications.markAsRead", "تحديد كمقروء")}
                                                             </DropdownMenuItem>
                                                         )}
                                                         <DropdownMenuItem className="text-destructive">
-                                                            <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete", "Delete")}
+                                                            <Trash2 className="w-4 h-4 mr-2" /> {t("common.delete", "حذف")}
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -240,11 +240,11 @@ export default function NotificationsPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl font-serif font-bold text-gradient">Hekayaty</h1>
-                            <h4 className="font-bold text-lg mb-1">{t("notifications.tipsTitle", "Notification Preferences")}</h4>
+                            <h4 className="font-bold text-lg mb-1">{t("notifications.tipsTitle", "تفضيلات الإشعارات")}</h4>
                             <p className="text-sm text-muted-foreground mb-4">
-                                {t("notifications.tipsDescription", "You can customize how and when you receive notifications in your settings. Choose between in-app, email, and push alerts.")}
+                                {t("notifications.tipsDescription", "يمكنك تخصيص كيفية ووقت تلقي الإشعارات في إعداداتك. اختر بين التنبيهات داخل التطبيق، والبريد الإلكتروني، والإشعارات المباشرة.")}
                             </p>
-                            <Button variant="outline" size="sm" className="bg-white/5 border-white/10">{t("notifications.configure", "Configure Alerts")}</Button>
+                            <Button variant="outline" size="sm" className="bg-white/5 border-white/10">{t("notifications.configure", "إعداد التنبيهات")}</Button>
                         </div>
                     </div>
                 </div>

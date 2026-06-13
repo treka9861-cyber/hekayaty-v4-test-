@@ -3,7 +3,12 @@
 
 <head>
   <meta charset="UTF-8" />
+  <!-- Anti-translation: Google -->
   <meta name="google" content="notranslate" />
+  <!-- Anti-translation: Microsoft Translator / Edge -->
+  <meta name="microsoft-translate" content="no" />
+  <!-- Anti-translation: Yandex Browser -->
+  <meta name="yandex" content="noindex,notranslate" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -30,9 +35,39 @@
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link rel="dns-prefetch" href="https://res.cloudinary.com">
 
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300..900&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Cairo:wght@200..1000&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-    rel="stylesheet">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..900&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Cairo:wght@200..1000&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap" as="style">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..900&family=Merriweather:ital,wght@0,300..900;1,300..900&family=Cairo:wght@200..1000&family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap">
+
+  <!-- Anti-auto-translate runtime guard -->
+  <!-- Catches Firefox + Samsung Browser + any browser that ignores the meta tags -->
+  <script>
+    (function() {
+      // Immediately set translate=no on the root element
+      document.documentElement.setAttribute('translate', 'no');
+      document.documentElement.setAttribute('class',
+        (document.documentElement.getAttribute('class') || '') + ' notranslate'
+      );
+
+      // Watch for Google Translate / Bing Translate DOM injections and undo them
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          // Google Translate adds a <font> wrapper and changes html.translated-ltr
+          if (document.documentElement.classList.contains('translated-ltr') ||
+              document.documentElement.classList.contains('translated-rtl')) {
+            // Re-affirm no-translate; page reload is the nuclear option but too jarring
+            document.documentElement.removeAttribute('class');
+            document.documentElement.setAttribute('translate', 'no');
+            document.documentElement.setAttribute('class', 'notranslate');
+          }
+        });
+      });
+
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'lang']
+      });
+    })();
+  </script>
 
   <!-- Service Worker Registration -->
   <script>
@@ -46,7 +81,7 @@
   </script>
 </head>
 
-<body>
+<body class="notranslate" translate="no">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

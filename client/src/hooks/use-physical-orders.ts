@@ -2,76 +2,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
+import { apiRequest } from "@/lib/queryClient";
+
 async function callEdgeFunction(
     functionName: string,
     data?: any,
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'POST'
 ) {
-    console.log(`🚀 callEdgeFunction: Calling ${functionName} [${method}]`, data);
+    console.log(`🚀 Backend API Call: Calling ${functionName} [${method}]`, data);
 
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        const headers: Record<string, string> = {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
-        };
-
-        if (session?.access_token) {
-            headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-
-        const { data: responseData, error } = await supabase.functions.invoke(functionName, {
-            method,
-            body: data,
-            headers
-        });
-
-        if (error) {
-            console.error(`❌ Edge Function Error [${functionName}]:`, error);
-
-            // Log full error details for debugging
-            console.error('Full error:', JSON.stringify(error, null, 2));
-
-            // Only retry on ACTUAL 401 unauthorized errors
-            const status = (error as any).status || (error as any).context?.status;
-            const isUnauthorized =
-                status === 401 ||
-                error.message?.toLowerCase().includes('jwt') ||
-                error.message?.toLowerCase().includes('unauthorized');
-
-            if (isUnauthorized) {
-                console.log("🔄 401 detected in invoke (physical), refreshing session...");
-                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-
-                if (!refreshError && refreshData.session) {
-                    console.log("✅ Session refreshed, retrying invoke...");
-
-                    const retryHeaders: Record<string, string> = {
-                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${refreshData.session.access_token}`
-                    };
-
-                    const { data: retryData, error: retryError } = await supabase.functions.invoke(functionName, {
-                        method,
-                        body: data,
-                        headers: retryHeaders
-                    });
-
-                    if (!retryError) return retryData;
-                }
-            }
-            throw new Error(error.message || `Failed to call ${functionName}`);
-        }
+        const url = `/api/edge/${functionName}`;
+        const res = await apiRequest(method, url, method === 'GET' ? undefined : data);
+        const responseData = await res.json();
 
         if (responseData && responseData.error) {
             console.error(`❌ Edge Function returned logical error [${functionName}]:`, responseData.error);
             throw new Error(responseData.error);
         }
 
-        console.log(`✅ callEdgeFunction Success [${functionName}]:`, responseData);
+        console.log(`✅ Backend API Success [${functionName}]:`, responseData);
         return responseData;
     } catch (err: any) {
-        console.error(`❌ callEdgeFunction Exception [${functionName}]:`, err);
+        console.error(`❌ Backend API Exception [${functionName}]:`, err);
         throw err;
     }
 }

@@ -34,7 +34,7 @@ class Persistence {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(value, key);
+      const request = store.put({ data: value, timestamp: Date.now() }, key);
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
@@ -46,7 +46,18 @@ class Persistence {
       const transaction = db.transaction(STORE_NAME, 'readonly');
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get(key);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const result = request.result;
+        if (!result) return resolve(null);
+        
+        // 30 minutes TTL
+        if (Date.now() - result.timestamp > 30 * 60 * 1000) {
+          this.delete(key).catch(console.error);
+          resolve(null);
+        } else {
+          resolve(result.data);
+        }
+      };
       request.onerror = () => reject(request.error);
     });
   }

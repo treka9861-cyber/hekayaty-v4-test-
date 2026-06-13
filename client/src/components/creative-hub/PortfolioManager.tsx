@@ -64,11 +64,11 @@ export function PortfolioManager({ artistId }: { artistId: string }) {
                         </DialogHeader>
                         <div className="space-y-4 pt-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Work Title</label>
+                                <label className="text-sm font-medium">عنوان العمل</label>
                                 <Input value={newWork.title} onChange={e => setNewWork(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Epic Fantasy Map" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Category</label>
+                                <label className="text-sm font-medium">التصنيف</label>
                                 <Select value={newWork.categoryId} onValueChange={v => setNewWork(p => ({ ...p, categoryId: v }))}>
                                     <SelectTrigger>
                                         <SelectValue />
@@ -79,7 +79,7 @@ export function PortfolioManager({ artistId }: { artistId: string }) {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Image Upload</label>
+                                <label className="text-sm font-medium">رفع صورة</label>
                                 <CloudinaryUpload
                                     onUpload={(url) => setNewWork(p => ({ ...p, imageUrl: url }))}
                                     label="Upload High-Res Image"
@@ -118,7 +118,7 @@ export function PortfolioManager({ artistId }: { artistId: string }) {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Year Created</label>
+                                    <label className="text-sm font-medium">سنة الإنشاء</label>
                                     <Input value={newWork.yearCreated} onChange={e => setNewWork(p => ({ ...p, yearCreated: e.target.value }))} placeholder="e.g. 2024" />
                                 </div>
                                 <div className="space-y-2">
@@ -127,7 +127,7 @@ export function PortfolioManager({ artistId }: { artistId: string }) {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Description</label>
+                                <label className="text-sm font-medium">الوصف</label>
                                 <Textarea value={newWork.description} onChange={e => setNewWork(p => ({ ...p, description: e.target.value }))} placeholder="Briefly describe this work..." />
                             </div>
                             <Button onClick={handleCreate} disabled={createPortfolio.isPending} className="w-full">
@@ -207,13 +207,13 @@ export function PortfolioManager({ artistId }: { artistId: string }) {
                         size="sm"
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         disabled={page === 1}
-                    >Previous</Button>
+                    >السابق</Button>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setPage(p => p + 1)}
                         disabled={portfoliosResponse.data.length < 12}
-                    >Next</Button>
+                    >التالي</Button>
                 </div>
             )}
         </div>

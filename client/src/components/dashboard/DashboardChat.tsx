@@ -85,13 +85,13 @@ export function DashboardChat() {
                         <MessageCircle className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold font-serif">{t('chat.dashboard.title', 'Store Chat Inbox')}</h2>
-                        <p className="text-sm text-muted-foreground">{t('chat.dashboard.subtitle', 'Interact with your readers in real-time')}</p>
+                        <h2 className="text-xl font-bold font-serif">{t('chat.dashboard.title', 'بريد رسائل المتجر')}</h2>
+                        <p className="text-sm text-muted-foreground">{t('chat.dashboard.subtitle', 'تواصل مع قرائك في الوقت الفعلي')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="flex h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs font-medium text-green-500">Live</span>
+                    <span className="text-xs font-medium text-green-500">مباشر</span>
                 </div>
             </div>
 
@@ -100,7 +100,7 @@ export function DashboardChat() {
                 <div className="bg-primary/10 p-4 border-b border-primary/20 flex items-start gap-4 animate-in fade-in slide-in-from-top-2">
                     <Pin className="w-5 h-5 text-primary mt-1 shrink-0" />
                     <div className="flex-1 min-w-0">
-                        <p className="text-xs font-black text-primary mb-1 uppercase tracking-widest">{t('chat.pinned', 'Pinned for Readers')}</p>
+                        <p className="text-xs font-black text-primary mb-1 uppercase tracking-widest">{t('chat.pinned', 'مثبت للقراء')}</p>
                         <p className="text-sm font-medium">{pinnedMessage.content}</p>
                     </div>
                     <Button
@@ -109,7 +109,7 @@ export function DashboardChat() {
                         className="text-xs gap-2"
                         onClick={() => pinMessage({ messageId: pinnedMessage.id, isPinned: false })}
                     >
-                        <PinOff className="w-4 h-4" /> {t('chat.actions.unpin', 'Unpin')}
+                        <PinOff className="w-4 h-4" /> {t('chat.actions.unpin', 'إلغاء التثبيت')}
                     </Button>
                 </div>
             )}
@@ -120,8 +120,8 @@ export function DashboardChat() {
                         {messages.length === 0 && !isLoading && (
                             <div className="flex flex-col items-center justify-center py-32 text-center opacity-30">
                                 <MessageCircle className="w-20 h-20 mb-6" />
-                                <h3 className="text-xl font-bold mb-2">No conversations yet</h3>
-                                <p className="max-w-md">When readers visit your store and send messages, they will appear here in real-time.</p>
+                                <h3 className="text-xl font-bold mb-2">لا توجد محادثات بعد</h3>
+                                <p className="max-w-md">عندما يزور القراء متجرك ويرسلون رسائل، ستظهر هنا في الوقت الفعلي.</p>
                             </div>
                         )}
 
@@ -146,7 +146,7 @@ export function DashboardChat() {
                         <div className="flex items-center gap-3 truncate">
                             <Reply className="w-4 h-4 text-primary" />
                             <div className="truncate">
-                                <span className="font-bold">Replying to {replyTo.sender?.display_name}:</span>
+                                <span className="font-bold">رد على {replyTo.sender?.display_name}:</span>
                                 <span className="ml-2 opacity-70 italic">{replyTo.content}</span>
                             </div>
                         </div>
@@ -162,7 +162,7 @@ export function DashboardChat() {
                         <Input
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder={t('chat.dashboard.placeholder', 'Type a message to your community...')}
+                            placeholder={t('chat.dashboard.placeholder', 'اكتب رسالة لمجتمعك...')}
                             className="h-14 bg-black/40 border-white/10 px-6 text-lg rounded-xl focus:ring-primary/50"
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                         />
@@ -182,6 +182,7 @@ function DashboardMessageItem({
     onReply,
     onDelete,
     onPin,
+    onScrollToOriginal,
     currentLocale
 }: {
     message: ChatMessage;
@@ -237,13 +238,13 @@ function DashboardMessageItem({
                     </div>
 
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10" onClick={onReply} title="Reply">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10" onClick={onReply} title={t('common.reply', 'رد')}>
                             <Reply className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10" onClick={onPin} title="Pin to store">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10" onClick={onPin} title={t('common.pin', 'تثبيت بالمتجر')}>
                             <Pin className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-red-500/10 text-destructive" onClick={onDelete} title="Delete">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-red-500/10 text-destructive" onClick={onDelete} title={t('common.delete', 'حذف')}>
                             <Trash2 className="w-4 h-4" />
                         </Button>
                     </div>

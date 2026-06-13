@@ -1,7 +1,6 @@
 import { Link } from "wouter";
-import { User } from "@shared/schema";
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
 import { optimizeImage, usePrefetchHover } from "@/lib/performance-core";
@@ -9,7 +8,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 interface FeaturedWriterProps {
-  writer: Omit<User, 'password' | 'createdAt'> & { productCount?: number };
+  writer: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    bio?: string | null;
+    productCount?: number;
+    isVerified?: boolean;
+    [key: string]: any;
+  };
   showStats?: boolean;
 }
 
@@ -108,14 +117,29 @@ export function FeaturedWriter({ writer, showStats = true }: FeaturedWriterProps
 
           {/* Identity Section */}
           <div className="space-y-1.5 mb-6">
-            <h3 className="text-xl md:text-2xl font-serif font-black text-white tracking-tight leading-tight group-hover:text-primary transition-colors duration-500 line-clamp-2 px-2">
-              {writer.displayName}
-            </h3>
+            <div className="flex items-center justify-center gap-1.5">
+              <h3 className="text-xl md:text-2xl font-serif font-black text-white tracking-tight leading-tight group-hover:text-primary transition-colors duration-500 line-clamp-2 px-2">
+                {writer.displayName}
+              </h3>
+              {writer.isVerified && (
+                <div className="relative shrink-0" title="كاتب موثق">
+                  <div className="absolute inset-0 bg-primary/40 blur-md rounded-full" />
+                  <BadgeCheck className="relative w-5 h-5 text-primary drop-shadow-[0_0_6px_rgba(204,166,96,0.8)]" />
+                </div>
+              )}
+            </div>
             <div className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-primary/5 border border-primary/10">
               <p className="text-primary text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">
                 @{writer.username}
               </p>
             </div>
+            {writer.isVerified && (
+              <div className="flex justify-center">
+                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/60 border border-primary/20 px-2 py-0.5 rounded-full bg-primary/5">
+                  ✓ كاتب موثق
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Performance Badge - Clean & Integrated */}

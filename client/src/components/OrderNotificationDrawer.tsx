@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 export function OrderNotificationDrawer() {
     const [open, setOpen] = useState(false);
     const { data: notifications = [], isLoading } = useOrderNotifications();
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -35,7 +35,7 @@ export function OrderNotificationDrawer() {
                 <SheetHeader className="pb-6 border-b">
                     <SheetTitle className="flex items-center gap-2">
                         <Bell className="w-5 h-5" />
-                        Order Notifications
+                        إشعارات الطلبات
                     </SheetTitle>
                 </SheetHeader>
 
@@ -47,8 +47,8 @@ export function OrderNotificationDrawer() {
                     ) : notifications.length === 0 ? (
                         <div className="text-center py-12">
                             <Bell className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-                            <p className="text-muted-foreground font-medium">No order updates yet</p>
-                            <p className="text-xs text-muted-foreground/60 mt-1">Updates about your shipments will appear here</p>
+                            <p className="text-muted-foreground font-medium">لا توجد تحديثات للطلبات بعد</p>
+                            <p className="text-xs text-muted-foreground/60 mt-1">ستظهر تحديثات شحناتك هنا</p>
                         </div>
                     ) : (
                         notifications.map((notification: OrderNotification) => (

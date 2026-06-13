@@ -13,8 +13,8 @@ export default function Legal() {
     return (
         <div className="min-h-screen relative flex flex-col">
             <SEO
-                title={isArabic ? "سياسة الخصوصية والشروط" : "Privacy & Terms"}
-                description="Legal agreements for Hekayaty Store."
+                title="سياسة الخصوصية والشروط | حكاياتي"
+                description="الاتفاقيات القانونية لمتجر حكاياتي."
             />
             <Navbar />
 

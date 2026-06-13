@@ -13,7 +13,7 @@ import { Loader2, Mail, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const forgotPasswordSchema = z.object({
-    email: z.string().email("Please enter a valid email address"),
+    email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
 });
 
 export default function ForgotPassword() {

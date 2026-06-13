@@ -152,9 +152,9 @@ export function CreateProductDialog({ open, onOpenChange, product, mode = 'creat
       ) : null}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === 'edit' ? t("dashboard.products.editTitle") || "Edit Product" : t("dashboard.products.publishTitle")}</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? t("dashboard.products.editTitle") || "تعديل المنتج" : t("dashboard.products.publishTitle")}</DialogTitle>
           <DialogDescription>
-            {mode === 'edit' ? t("dashboard.products.editDescription") || "Update your product details below." : t("dashboard.products.publishDescription")}
+            {mode === 'edit' ? t("dashboard.products.editDescription") || "قم بتحديث تفاصيل منتجك أدناه." : t("dashboard.products.publishDescription")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit((data) => performSubmit(data, true))} className="space-y-6 mt-4">
@@ -172,7 +172,7 @@ export function CreateProductDialog({ open, onOpenChange, product, mode = 'creat
                 }}
               >
                 <option value="ebook">{t("dashboard.products.types.ebook")}</option>
-                <option value="audiobook">{t("dashboard.products.types.audiobook") || "Audiobook"}</option>
+                <option value="audiobook">{t("dashboard.products.types.audiobook") || "كتاب صوتي"}</option>
                 <option value="physical">{t("dashboard.products.types.physical")}</option>
                 <option value="merchandise">{t("dashboard.products.types.merchandise")}</option>
                 <option value="asset">{t("dashboard.products.types.asset")}</option>
@@ -244,10 +244,10 @@ export function CreateProductDialog({ open, onOpenChange, product, mode = 'creat
 
                 <div className="space-y-3 relative z-10">
                   <h3 className="text-2xl font-bold font-serif bg-gradient-to-r from-primary via-amber-600 to-primary bg-clip-text text-transparent">
-                    {t("dashboard.products.echoesComing") || "Ancient Whispers are Awakening..."}
+                    {t("dashboard.products.echoesComing") || "الهمسات القديمة تستيقظ..."}
                   </h3>
                   <p className="text-sm text-muted-foreground/80 max-w-sm mx-auto leading-relaxed italic">
-                    {t("dashboard.products.audioComingVibe") || "The scrolls of sound are being enchanted. Very soon, your stories will echo through the realms in a grand symphony of voices."}
+                    {t("dashboard.products.audioComingVibe") || "يتم سحر مخطوطات الصوت. قريباً جداً، ستتردد أصداء قصصك عبر العوالم في سيمفونية رائعة من الأصوات."}
                   </p>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export function CreateProductDialog({ open, onOpenChange, product, mode = 'creat
 
             <div className="space-y-2 col-span-2">
               <label className="text-sm font-medium">{t("dashboard.products.genre")}</label>
-              <Input {...register("genre")} className="h-14 text-lg font-bold text-center" placeholder={type === "asset" ? "Icons, Textures..." : t("dashboard.products.genrePlaceholder")} />
+              <Input {...register("genre")} className="h-14 text-lg font-bold text-center" placeholder={type === "asset" ? "أيقونات، خامات..." : t("dashboard.products.genrePlaceholder")} />
             </div>
 
             <div className="space-y-2 col-span-2">

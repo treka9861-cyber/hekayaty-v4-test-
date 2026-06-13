@@ -90,7 +90,7 @@ const CinematicSectionHeader = ({ layer, title, subtitle, variant = "gold" }: { 
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className={cn("text-6xl md:text-[8rem] font-serif font-black leading-[0.9] tracking-tighter", gradientClass)}
+              className={cn("text-4xl sm:text-6xl md:text-[8rem] font-serif font-black leading-[0.9] tracking-tighter", gradientClass)}
             >
               {title}
             </motion.h2>
@@ -130,12 +130,13 @@ const PremiumServiceCard = ({ icon: Icon, title, items, variant = "gold" }: { ic
             <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000", glowColor)} />
             
             <div className="relative z-10 flex flex-col h-full space-y-12">
-                <div className={cn("w-24 h-24 rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-1000 group-hover:scale-110", iconColor)}>
-                    <Icon size={44} strokeWidth={1} className="relative z-10" />
+                <div className={cn("w-16 h-16 sm:w-24 sm:h-24 rounded-2xl sm:rounded-[2.5rem] bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-1000 group-hover:scale-110", iconColor)}>
+                    <Icon size={32} className="relative z-10 sm:hidden" strokeWidth={1} />
+                    <Icon size={44} className="relative z-10 hidden sm:block" strokeWidth={1} />
                     <div className={cn("absolute inset-0 blur-2xl opacity-0 group-hover:opacity-40 transition-opacity", iconColor === "text-primary" ? "bg-primary" : iconColor === "text-cyan-400" ? "bg-cyan-400" : "bg-violet-400")} />
                 </div>
                 
-                <h3 className="text-4xl font-serif font-black text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-white/40 transition-all">{title}</h3>
+                <h3 className="text-3xl sm:text-4xl font-serif font-black text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-white/40 transition-all">{title}</h3>
                 
                 <ul className="space-y-6 flex-1">
                     {items.map((item, idx) => (
@@ -181,7 +182,7 @@ const PortfolioHero = () => {
                 </motion.div>
                 
                 <motion.h1 
-                    className="text-8xl md:text-[14rem] font-serif font-black tracking-tighter leading-[0.8] drop-shadow-[0_40px_80px_rgba(0,0,0,1)]"
+                    className="text-5xl sm:text-8xl md:text-[14rem] font-serif font-black tracking-tighter leading-[0.8] drop-shadow-[0_40px_80px_rgba(0,0,0,1)]"
                     initial={{ opacity: 0, y: 100 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
@@ -226,7 +227,7 @@ const LayerCorePortfolio = () => {
             <div className="container-responsive relative z-10">
                 <CinematicSectionHeader 
                     layer={t("studioPage.layers.core.title")}
-                    title="THE ORIGIN"
+                    title="البداية"
                     subtitle={t("studioPage.layers.core.subtitle")}
                     variant="gold"
                 />
@@ -259,7 +260,7 @@ const LayerHighValuePortfolio = () => {
             <div className="container-responsive relative z-10 flex flex-col items-end text-right">
                 <CinematicSectionHeader 
                     layer={t("studioPage.layers.highValue.title")}
-                    title="THE ASCENSION"
+                    title="الارتقاء"
                     subtitle={t("studioPage.layers.highValue.subtitle")}
                     variant="cyan"
                 />
@@ -292,7 +293,7 @@ const LayerPremiumPortfolio = () => {
             <div className="container-responsive relative z-10">
                 <CinematicSectionHeader 
                     layer={t("studioPage.layers.premium.title")}
-                    title="THE INFINITY"
+                    title="اللانهاية"
                     subtitle={t("studioPage.layers.premium.subtitle")}
                     variant="violet"
                 />
@@ -312,11 +313,11 @@ const LayerPremiumPortfolio = () => {
                         <Globe size={400} className="text-violet-500" />
                     </div>
                     
-                    <div className="relative z-10 space-y-10">
-                        <Globe className="text-violet-400" size={64} strokeWidth={1} />
-                        <h4 className="text-5xl font-serif font-black text-white">Custom Subscriber Empires</h4>
-                        <p className="text-white/40 text-2xl font-sans max-w-3xl font-light italic leading-relaxed">
-                            Every subscriber is granted a bespoke high-performance portal—a digital fortress that serves as the command center for their ever-expanding universe.
+                    <div className="relative z-10 space-y-6 sm:space-y-10">
+                        <Globe className="text-violet-400 sm:w-16 sm:h-16 w-12 h-12" strokeWidth={1} />
+                        <h4 className="text-3xl sm:text-5xl font-serif font-black text-white">إمبراطوريات المشتركين المخصصة</h4>
+                        <p className="text-white/40 text-lg sm:text-2xl font-sans max-w-3xl font-light italic leading-relaxed">
+                            يُمنح كل مشترك بوابة مخصصة عالية الأداء - قلعة رقمية تعمل كمركز قيادة لكونه المتوسع باستمرار.
                         </p>
                     </div>
                 </motion.div>
@@ -334,7 +335,7 @@ const MarketplaceCommunityPortfolio = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-40">
                     {/* Marketplace */}
                     <div className="space-y-24">
-                        <CinematicSectionHeader layer="Supporting Talent" title="The Guild" subtitle={t("studioPage.marketplace.subtitle")} />
+                        <CinematicSectionHeader layer="دعم المواهب" title="النقابة" subtitle={t("studioPage.marketplace.subtitle")} />
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                             {(t("studioPage.marketplace.items", { returnObjects: true }) as string[]).map((item, i) => (
                                 <div key={i} className="flex items-center gap-8 p-10 bg-white/[0.02] rounded-[2.5rem] border border-white/5 hover:border-primary/30 hover:bg-white/[0.05] transition-all duration-700 group">
@@ -349,7 +350,7 @@ const MarketplaceCommunityPortfolio = () => {
 
                     {/* Community */}
                     <div className="space-y-24">
-                        <CinematicSectionHeader layer="Engagement Echo" title="The Nexus" />
+                        <CinematicSectionHeader layer="صدى التفاعل" title="الرابطة" />
                         <div className="space-y-8">
                             {[
                                 { title: t("studioPage.community.merch"), icon: Package },
@@ -387,7 +388,7 @@ const FinalPortfolioTag = () => {
                     initial={{ opacity: 0, scale: 0.8 }}
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
-                    className="text-8xl md:text-[18rem] font-serif font-black tracking-tighter leading-[0.7] text-white drop-shadow-[0_0_80px_rgba(255,215,0,0.4)]"
+                    className="text-5xl sm:text-8xl md:text-[18rem] font-serif font-black tracking-tighter leading-[0.7] text-white drop-shadow-[0_0_80px_rgba(255,215,0,0.4)]"
                 >
                     {t("studioPage.final.title")}<br/>
                     <span className="text-gradient leading-relaxed">{t("studioPage.final.titleHighlight")}</span>

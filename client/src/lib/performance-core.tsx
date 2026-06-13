@@ -37,7 +37,8 @@ export const optimizeImage = (url: string | null | undefined, width: number = 80
     const separator = '/upload/';
     const parts = url.split(separator);
     if (parts.length === 2) {
-      return `${parts[0]}${separator}f_auto,q_auto:best,w_${width},c_limit,g_auto/${parts[1]}`;
+      // Note: g_auto cannot be used with c_limit. We just use c_limit to avoid cropping covers.
+      return `${parts[0]}${separator}f_auto,q_auto:best,w_${width},c_limit/${parts[1]}`;
     }
   }
 
@@ -75,13 +76,39 @@ const prefetchedUrls = new Set<string>();
 export const prefetchImage = (url: string) => {
   if (!url || prefetchedUrls.has(url)) return;
   
-  const img = new Image();
-  img.src = url;
-  img.decoding = 'async';
+  if (typeof document !== 'undefined') {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = url;
+    document.head.appendChild(link);
+  }
+  
   prefetchedUrls.add(url);
 };
 
-// --- 4. LAZY SECTION (VIEWPORT RENDERING) ---
+const observerCallbacks = new Map<Element, () => void>();
+let sharedObserver: IntersectionObserver | null = null;
+
+function getSharedObserver(offset: string) {
+  if (typeof window === 'undefined') return null;
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const callback = observerCallbacks.get(entry.target);
+          if (callback) {
+            callback();
+            sharedObserver?.unobserve(entry.target);
+            observerCallbacks.delete(entry.target);
+          }
+        }
+      });
+    }, { rootMargin: offset });
+  }
+  return sharedObserver;
+}
+
 export const LazySection: React.FC<{ children: React.ReactNode; offset?: string; fallback?: React.ReactNode }> = ({ 
   children, 
   offset = "300px", 
@@ -91,18 +118,17 @@ export const LazySection: React.FC<{ children: React.ReactNode; offset?: string;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: offset }
-    );
+    const node = ref.current;
+    if (!node) return;
 
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    observerCallbacks.set(node, () => setIsVisible(true));
+    const observer = getSharedObserver(offset);
+    if (observer) observer.observe(node);
+
+    return () => {
+      observerCallbacks.delete(node);
+      if (observer) observer.unobserve(node);
+    };
   }, [offset]);
 
   return <div ref={ref}>{isVisible ? children : fallback}</div>;

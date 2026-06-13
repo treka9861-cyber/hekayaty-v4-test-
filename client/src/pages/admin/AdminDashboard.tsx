@@ -6,14 +6,24 @@ import { CheckCircle, XCircle, ExternalLink, AlertTriangle, Users, Lock, Unlock,
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
-import { useAdminOrders, useVerifyOrder, useRejectOrder, useAdminSellers, useFreezeSeller, useAdminPayouts, useApprovePayout, useAdminPayoutHistory, useAdminOrderHistory } from "@/hooks/use-admin";
+import { useAdminOrders, useVerifyOrder, useRejectOrder, useAdminSellers, useFreezeSeller, useAdminPayouts, useApprovePayout, useAdminPayoutHistory, useAdminOrderHistory, usePendingSubscriptions, useApproveSubscription, useRejectSubscription, useAdminSubscriptionHistory } from "@/hooks/use-admin";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { PhysicalOrdersAdmin } from "./PhysicalOrdersAdmin";
 import { MediaAdmin } from "./MediaAdmin";
+import { OverviewAdmin } from "./OverviewAdmin";
+import { UsersAdmin } from "./UsersAdmin";
+import { SecurityAdmin } from "./SecurityAdmin";
+import { ReportsAdmin } from "./ReportsAdmin";
+import { ContentModerationAdmin } from "./ContentModerationAdmin";
+import { FinancialsAdmin } from "./FinancialsAdmin";
+import { OrdersAdmin as GlobalOrdersAdmin } from "./OrdersAdmin";
+import { MarketingAdmin } from "./MarketingAdmin";
+import { CommunityAdmin } from "./CommunityAdmin";
+import { SettingsAdmin } from "./SettingsAdmin";
 import { formatDate, cn } from "@/lib/utils";
 import { useAdminPrivateMessages, useSendAdminPrivateMessage, useAdminAnnouncements, useCreateAdminAnnouncement, useDeleteAdminAnnouncement, useMarkMessageRead } from "@/hooks/use-admin-system";
-import { MessageSquare, Send, Megaphone, Trash2, Pin } from "lucide-react";
+import { MessageSquare, Send, Megaphone, Trash2, Pin, Shield, Activity, Users as UsersIcon, Flag, BookMarked, DollarSign, Package, Settings, MessageCircle } from "lucide-react";
 import { useDesignRequests } from "@/hooks/use-commissions";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CommissionThread } from "@/components/creative-hub/CommissionsManager";
@@ -31,8 +41,8 @@ function PayoutsAdmin() {
             <CardHeader className="border-b border-white/5 bg-white/5">
                 <div className="flex justify-between items-center">
                     <div>
-                        <CardTitle className="text-2xl text-gradient">Payout Requests</CardTitle>
-                        <CardDescription>Review and process payout requests from creators.</CardDescription>
+                        <CardTitle className="text-2xl text-gradient">طلبات السحب</CardTitle>
+                        <CardDescription>مراجعة ومعالجة طلبات السحب من المبدعين.</CardDescription>
                     </div>
                     <Wallet className="w-8 h-8 text-primary/40" />
                 </div>
@@ -43,19 +53,19 @@ function PayoutsAdmin() {
                         <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                             <CheckCircle className="w-8 h-8 text-primary/40" />
                         </div>
-                        <p className="text-lg font-medium">Clear Skies!</p>
-                        <p className="text-sm">No pending payout requests.</p>
+                        <p className="text-lg font-medium">لا توجد طلبات!</p>
+                        <p className="text-sm">لا توجد طلبات سحب معلقة حالياً.</p>
                     </div>
                 ) : (
                     <Table>
                         <TableHeader className="bg-white/5">
                             <TableRow className="hover:bg-transparent border-white/10">
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Creator</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Amount</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Method</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Details</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Requested Date</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4 text-right">Actions</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبدع</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الطريقة</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">التفاصيل</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">تاريخ الطلب</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4 text-right">إجراءات</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -67,7 +77,7 @@ function PayoutsAdmin() {
                                             <span className="text-xs text-muted-foreground font-mono">{payout.user?.email || payout.user_id}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-4 font-black text-lg text-primary">{payout.amount} <span className="text-xs">EGP</span></TableCell>
+                                    <TableCell className="py-4 font-black text-lg text-primary">{payout.amount} <span className="text-xs">ج.م</span></TableCell>
                                     <TableCell className="py-4">
                                         <Badge variant="outline" className="capitalize border-primary/30 text-primary bg-primary/5">
                                             {payout.method?.replace('_', ' ')}
@@ -84,24 +94,24 @@ function PayoutsAdmin() {
                                                 variant="ghost"
                                                 className="text-destructive hover:bg-destructive/10 h-9"
                                                 onClick={() => {
-                                                    if (confirm('Are you sure you want to REJECT this payout request?'))
+                                                    if (confirm('هل أنت متأكد أنك تريد رفض طلب السحب هذا؟'))
                                                         approvePayout.mutate({ payoutId: payout.id, status: 'rejected' });
                                                 }}
                                                 disabled={approvePayout.isPending}
                                             >
-                                                <XCircle className="w-4 h-4 mr-1.5" /> Reject
+                                                <XCircle className="w-4 h-4 mr-1.5" /> رفض
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 className="bg-primary hover:bg-primary/80 text-primary-foreground h-9 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-105"
                                                 onClick={() => {
-                                                    if (confirm('Confirm that you have transferred the money to the creator?'))
+                                                    if (confirm('هل تؤكد أنك قمت بتحويل الأموال إلى المبدع؟'))
                                                         approvePayout.mutate({ payoutId: payout.id, status: 'processed' });
                                                 }}
                                                 disabled={approvePayout.isPending}
                                             >
                                                 <CheckCircle className="w-4 h-4 mr-1.5" />
-                                                {approvePayout.isPending ? 'Processing...' : 'Approve'}
+                                                {approvePayout.isPending ? 'جاري المعالجة...' : 'موافقة'}
                                             </Button>
                                         </div>
                                     </TableCell>
@@ -118,8 +128,9 @@ function PayoutsAdmin() {
 function AdminHistory() {
     const { data: payoutHistory, isLoading: payoutsLoading } = useAdminPayoutHistory();
     const { data: orderHistory, isLoading: ordersLoading } = useAdminOrderHistory();
+    const { data: subscriptionHistory, isLoading: subsLoading } = useAdminSubscriptionHistory();
 
-    if (payoutsLoading || ordersLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
+    if (payoutsLoading || ordersLoading || subsLoading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-primary w-10 h-10" /></div>;
 
     return (
         <div className="space-y-10">
@@ -130,8 +141,8 @@ function AdminHistory() {
                             <Wallet className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <CardTitle className="text-2xl text-gradient">Payout History</CardTitle>
-                            <CardDescription>All processed or rejected payout requests.</CardDescription>
+                            <CardTitle className="text-2xl text-gradient">سجل السحوبات</CardTitle>
+                            <CardDescription>جميع طلبات السحب المعالجة أو المرفوضة.</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
@@ -139,10 +150,10 @@ function AdminHistory() {
                     <Table>
                         <TableHeader className="bg-white/5">
                             <TableRow className="border-white/10 hover:bg-transparent">
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Creator</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Amount</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Status</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Requested Date</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبدع</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الحالة</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">تاريخ الطلب</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -154,7 +165,7 @@ function AdminHistory() {
                                             <span className="text-xs text-muted-foreground font-mono">{payout.user?.email}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-4 font-black text-primary text-lg">{payout.amount} <span className="text-xs">EGP</span></TableCell>
+                                    <TableCell className="py-4 font-black text-primary text-lg">{payout.amount} <span className="text-xs">ج.م</span></TableCell>
                                     <TableCell className="py-4">
                                         <Badge
                                             variant={payout.status === 'processed' ? 'default' : 'destructive'}
@@ -163,7 +174,7 @@ function AdminHistory() {
                                                 payout.status === 'processed' ? "bg-green-500/20 text-green-500 border border-green-500/20" : "bg-destructive/20 text-destructive border border-destructive/20"
                                             )}
                                         >
-                                            {payout.status}
+                                            {payout.status === 'processed' ? 'مكتمل' : payout.status === 'rejected' ? 'مرفوض' : payout.status}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="py-4 text-sm font-medium opacity-80">
@@ -183,8 +194,8 @@ function AdminHistory() {
                             <CheckCircle className="w-6 h-6 text-green-500" />
                         </div>
                         <div>
-                            <CardTitle className="text-2xl text-gradient">Order History</CardTitle>
-                            <CardDescription>All verified or rejected order payments.</CardDescription>
+                            <CardTitle className="text-2xl text-gradient">سجل الطلبات</CardTitle>
+                            <CardDescription>جميع مدفوعات الطلبات المؤكدة أو المرفوضة.</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
@@ -192,11 +203,12 @@ function AdminHistory() {
                     <Table>
                         <TableHeader className="bg-white/5">
                             <TableRow className="border-white/10 hover:bg-transparent">
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Order ID</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">User</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Amount</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Status</TableHead>
-                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Date</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">رقم الطلب</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المستخدم</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المنتجات</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الحالة</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">التاريخ</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -205,11 +217,22 @@ function AdminHistory() {
                                     <TableCell className="py-4 font-mono text-sm font-bold text-primary/60">#{order.id}</TableCell>
                                     <TableCell className="py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-foreground">{order.user?.display_name || 'Guest'}</span>
+                                            <span className="font-bold text-foreground">{order.user?.display_name || 'زائر'}</span>
                                             <span className="text-xs text-muted-foreground font-mono">{order.user?.email}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="py-4 font-black text-primary text-lg">{order.total_amount} <span className="text-xs">EGP</span></TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col gap-1">
+                                            {order.order_items?.map((item: any, i: number) => (
+                                                <div key={i} className="text-xs flex items-center gap-1">
+                                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-white/20">{item.quantity}x</Badge>
+                                                    <span className="text-foreground truncate max-w-[200px]">{item.product?.title || 'منتج غير معروف'}</span>
+                                                </div>
+                                            ))}
+                                            {!order.order_items?.length && <span className="text-xs text-muted-foreground italic">لم يتم العثور على عناصر</span>}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 font-black text-primary text-lg">{order.total_amount} <span className="text-xs">ج.م</span></TableCell>
                                     <TableCell className="py-4">
                                         <Badge
                                             variant={order.status === 'paid' ? 'default' : 'destructive'}
@@ -218,11 +241,73 @@ function AdminHistory() {
                                                 order.status === 'paid' ? "bg-green-600/20 text-green-500 border border-green-500/20" : "bg-destructive/20 text-destructive border border-destructive/20"
                                             )}
                                         >
-                                            {order.status === 'paid' ? 'Verified' : order.status}
+                                            {order.status === 'paid' ? 'تم الدفع' : order.status === 'cancelled' ? 'ملغي' : order.status === 'rejected' ? 'مرفوض' : order.status}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="py-4 text-sm font-medium opacity-80">
                                         {formatDate(order.created_at)}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Card className="glass-card border-white/10 bg-black/40 shadow-2xl overflow-hidden">
+                <CardHeader className="bg-white/5 border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                            <Lock className="w-6 h-6 text-blue-500" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-2xl text-gradient">سجل الاشتراكات</CardTitle>
+                            <CardDescription>جميع طلبات الاشتراكات المعالجة أو المرفوضة.</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader className="bg-white/5">
+                            <TableRow className="border-white/10 hover:bg-transparent">
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المستخدم</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الخطة والنادي</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الحالة</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">التاريخ</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {subscriptionHistory?.map((sub: any) => (
+                                <TableRow key={sub.id} className="border-white/5 hover:bg-white/5 transition-colors">
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-foreground">{sub.user?.display_name || 'غير معروف'}</span>
+                                            <span className="text-xs text-muted-foreground font-mono">{sub.user?.email}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-foreground text-sm">{sub.plan?.name || 'خطة غير معروفة'}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">النادي: {sub.club?.name || 'غير معروف'}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 font-black text-primary text-lg">
+                                        {sub.pricing ? (sub.pricing.price_in_cents / 100) : 'غير معروف'} <span className="text-xs">ج.م</span>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <Badge
+                                            variant={sub.status === 'active' ? 'default' : 'destructive'}
+                                            className={cn(
+                                                "font-bold uppercase tracking-tighter text-[10px]",
+                                                sub.status === 'active' ? "bg-green-500/20 text-green-500 border border-green-500/20" : "bg-destructive/20 text-destructive border border-destructive/20"
+                                            )}
+                                        >
+                                            {sub.status === 'active' ? 'تم التأكيد' : sub.status === 'rejected' ? 'مرفوض' : sub.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-4 text-sm font-medium opacity-80">
+                                        {formatDate(sub.created_at)}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -292,9 +377,9 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                 <CardHeader className="bg-white/5 border-b border-white/5">
                     <CardTitle className="flex items-center gap-2">
                         <MessageSquare className="w-5 h-5 text-primary" />
-                        Direct Admin Messages
+                        الرسائل المباشرة
                     </CardTitle>
-                    <CardDescription>Send private messages to specific writers.</CardDescription>
+                    <CardDescription>إرسال رسائل خاصة لمبدعين محددين.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
@@ -303,13 +388,13 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                             value={selectedSeller}
                             onChange={(e) => setSelectedSeller(e.target.value)}
                         >
-                            <option value="" className="bg-slate-900">Select a Writer...</option>
+                            <option value="" className="bg-slate-900">اختر مبدعاً...</option>
                             {sellers?.map((s: any) => (
-                                <option key={s.id} value={s.id} className="bg-slate-900">{s.display_name} ({s.role})</option>
+                                <option key={s.id} value={s.id} className="bg-slate-900">{s.display_name} ({s.role === 'writer' ? 'كاتب' : s.role})</option>
                             ))}
                         </select>
                         <Textarea
-                            placeholder="Type your private message..."
+                            placeholder="اكتب رسالتك الخاصة هنا..."
                             className="bg-white/5 border-white/10 text-white min-h-[100px]"
                             value={privateMsg}
                             onChange={(e) => setPrivateMsg(e.target.value)}
@@ -320,12 +405,12 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                             onClick={handleSendPrivate}
                         >
                             <Send className="w-4 h-4" />
-                            {sendMessage.isPending ? "Sending..." : "Send Message"}
+                            {sendMessage.isPending ? "جاري الإرسال..." : "إرسال الرسالة"}
                         </Button>
                     </div>
 
                     <div className="mt-8 border-t border-white/5 pt-6">
-                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Message History</h4>
+                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">سجل الرسائل</h4>
                         <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                             {messages?.map((msg: any) => (
                                 <div key={msg.id} className={cn(
@@ -336,13 +421,13 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                                 )}>
                                     <div className="flex justify-between items-start mb-1">
                                         <span className="font-bold text-xs text-primary/80">
-                                            {msg.senderId === user?.id ? "Admin (You)" : msg.sender?.display_name} → {msg.receiver?.display_name}
+                                            {msg.senderId === user?.id ? "المسؤول (أنت)" : msg.sender?.display_name} → {msg.receiver?.display_name}
                                         </span>
                                         <span className="text-[10px] opacity-40">{formatDate(msg.createdAt)}</span>
                                     </div>
                                     <p className="text-white/90">{msg.content}</p>
                                     {msg.isRead && msg.senderId === user?.id && (
-                                        <div className="text-[9px] text-green-500 mt-1 flex justify-end">Seen</div>
+                                        <div className="text-[9px] text-green-500 mt-1 flex justify-end">تم العرض</div>
                                     )}
                                 </div>
                             ))}
@@ -356,20 +441,20 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                 <CardHeader className="bg-white/5 border-b border-white/5">
                     <CardTitle className="flex items-center gap-2">
                         <Megaphone className="w-5 h-5 text-accent" />
-                        Platform Global Broadcast
+                        إذاعة عامة للمنصة
                     </CardTitle>
-                    <CardDescription>Send a real-time notification to EVERY user on the platform.</CardDescription>
+                    <CardDescription>إرسال إشعار فوري لجميع المستخدمين على المنصة.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
                     <div className="space-y-4">
                         <Input
-                            placeholder="Notification Title (e.g. Platform Update)"
+                            placeholder="عنوان الإشعار (مثال: تحديث المنصة)"
                             className="bg-white/5 border-white/10 text-white"
                             value={annTitle}
                             onChange={(e) => setAnnTitle(e.target.value)}
                         />
                         <Textarea
-                            placeholder="Notification content..."
+                            placeholder="محتوى الإشعار..."
                             className="bg-white/5 border-white/10 text-white min-h-[80px]"
                             value={annContent}
                             onChange={(e) => setAnnContent(e.target.value)}
@@ -378,13 +463,14 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                             <select
                                 className="bg-white/5 border border-white/10 rounded-md p-2 text-xs text-white outline-none"
                                 id="priority-select"
+                                defaultValue="high"
                             >
-                                <option value="low" className="bg-slate-900">Low Priority (Silent)</option>
-                                <option value="medium" className="bg-slate-900">Medium Priority</option>
-                                <option value="high" className="bg-slate-900" selected>High Priority (Toast)</option>
+                                <option value="low" className="bg-slate-900">أولوية منخفضة (صامت)</option>
+                                <option value="medium" className="bg-slate-900">أولوية متوسطة</option>
+                                <option value="high" className="bg-slate-900">أولوية عالية (إشعار منبثق)</option>
                             </select>
                             <Input
-                                placeholder="Deep Link (optional)"
+                                placeholder="رابط عميق (اختياري)"
                                 className="bg-white/5 border-white/10 text-white text-xs"
                                 id="link-input"
                             />
@@ -410,7 +496,7 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                                         })
                                     });
                                     if (res.ok) {
-                                        alert("Broadcast sent successfully!");
+                                        alert("تم إرسال الإشعار بنجاح!");
                                         setAnnTitle("");
                                         setAnnContent("");
                                     }
@@ -420,12 +506,12 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                             }}
                         >
                             <Send className="w-4 h-4" />
-                            Broadcast to All Users
+                            إرسال لجميع المستخدمين
                         </Button>
                     </div>
 
                     <div className="mt-8 border-t border-white/5 pt-6">
-                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Past Announcements (Writers)</h4>
+                        <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">الإعلانات السابقة (للمبدعين)</h4>
                         <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {announcements?.map((ann: any) => (
                                 <div key={ann.id} className="p-4 rounded-xl bg-white/5 border border-white/10 relative group">
@@ -439,7 +525,7 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                                             size="icon"
                                             className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                             onClick={() => {
-                                                if (confirm("Delete this announcement?")) deleteAnnouncement.mutate(ann.id);
+                                                if (confirm("هل تريد حذف هذا الإعلان؟")) deleteAnnouncement.mutate(ann.id);
                                             }}
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -447,7 +533,7 @@ function MessagingAdmin({ sellers }: { sellers: any[] }) {
                                     </div>
                                     <p className="text-xs text-muted-foreground line-clamp-2">{ann.content}</p>
                                     <div className="mt-3 flex justify-between items-center text-[10px] opacity-40">
-                                        <span>By {ann.admin?.display_name || "Admin"}</span>
+                                        <span>بواسطة {ann.admin?.display_name || "المدير"}</span>
                                         <span>{formatDate(ann.createdAt)}</span>
                                     </div>
                                 </div>
@@ -471,29 +557,29 @@ function CommissionsAdmin({ requestsResponse, isLoading }: { requestsResponse: a
                 <div className="flex justify-between items-center">
                     <div>
                         <div className="flex items-center gap-3">
-                            <CardTitle className="text-2xl text-gradient">Design Commissions</CardTitle>
+                            <CardTitle className="text-2xl text-gradient">طلبات التصميم المخصصة</CardTitle>
                             {(requestsResponse?.data?.filter((r: any) => r.status === 'payment_under_review')?.length || 0) > 0 && (
                                 <Badge className="bg-amber-600 text-white animate-pulse">
-                                    {requestsResponse.data.filter((r: any) => r.status === 'payment_under_review').length} Pending Reviews
+                                    {requestsResponse.data.filter((r: any) => r.status === 'payment_under_review').length} في انتظار المراجعة
                                 </Badge>
                             )}
                         </div>
-                        <CardDescription>Monitor all active design requests and collaborations.</CardDescription>
+                        <CardDescription>مراقبة جميع طلبات التصميم النشطة والتعاونيات.</CardDescription>
                     </div>
                     <PenTool className="w-8 h-8 text-primary/40" />
                 </div>
             </CardHeader>
             <CardContent>
-                {isLoading ? <div className="p-8 text-center"><Loader2 className="animate-spin inline-block mr-2" /> Loading...</div> : (
+                {isLoading ? <div className="p-8 text-center"><Loader2 className="animate-spin inline-block mr-2" /> جاري التحميل...</div> : (
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Project</TableHead>
-                                <TableHead>Client</TableHead>
-                                <TableHead>Artist</TableHead>
-                                <TableHead>Budget</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>المشروع</TableHead>
+                                <TableHead>العميل</TableHead>
+                                <TableHead>الفنان</TableHead>
+                                <TableHead>الميزانية</TableHead>
+                                <TableHead>الحالة</TableHead>
+                                <TableHead className="text-right">إجراءات</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -507,7 +593,7 @@ function CommissionsAdmin({ requestsResponse, isLoading }: { requestsResponse: a
                                     </TableCell>
                                     <TableCell>{req.client?.display_name}</TableCell>
                                     <TableCell>{req.artist?.display_name}</TableCell>
-                                    <TableCell className="font-bold text-primary">{req.budget} EGP</TableCell>
+                                    <TableCell className="font-bold text-primary">{req.budget} ج.م</TableCell>
                                     <TableCell>
                                         <Badge variant={req.status === 'payment_under_review' ? 'default' : 'outline'} className="capitalize">
                                             {req.status.replace('_', ' ')}
@@ -534,6 +620,107 @@ function CommissionsAdmin({ requestsResponse, isLoading }: { requestsResponse: a
     );
 }
 
+function SubscriptionsAdmin() {
+    const { data: pendingSubscriptions, isLoading } = usePendingSubscriptions();
+    const approveSubscription = useApproveSubscription();
+    const rejectSubscription = useRejectSubscription();
+
+    return (
+        <Card className="glass-card border-primary/20 bg-black/60 shadow-2xl overflow-hidden mt-6">
+            <CardHeader className="bg-white/5 border-b border-white/5">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle className="text-2xl text-gradient">الاشتراكات المعلقة</CardTitle>
+                        <CardDescription>مراجعة مدفوعات الاشتراكات اليدوية قبل منح الوصول.</CardDescription>
+                    </div>
+                    <Lock className="w-8 h-8 text-primary/40" />
+                </div>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? <div className="p-8 text-center"><Loader2 className="animate-spin inline-block mr-2" /> جاري التحميل...</div> : 
+                 (!pendingSubscriptions || pendingSubscriptions.length === 0) ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500/50" />
+                        <p>لا توجد مدفوعات اشتراكات معلقة للمراجعة.</p>
+                    </div>
+                ) : (
+                    <Table>
+                        <TableHeader className="bg-white/5">
+                            <TableRow className="border-white/10 hover:bg-transparent">
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المستخدم</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الخطة والنادي</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الطريقة والمرجع</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الإثبات</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">التاريخ</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4 text-right">إجراءات</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {pendingSubscriptions.map((sub: any) => (
+                                <TableRow key={sub.id} className="border-white/5 hover:bg-white/5 transition-colors">
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-foreground text-sm">{sub.user?.display_name || 'غير معروف'}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">{sub.user?.email}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-foreground text-sm">{sub.plan?.name || 'خطة غير معروفة'}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">النادي: {sub.club?.name || 'غير معروف'}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 font-black text-primary text-lg">
+                                        {sub.pricing ? (sub.pricing.price_in_cents / 100) : 'غير معروف'} <span className="text-xs">ج.م</span>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <Badge variant="outline" className="capitalize w-fit border-primary/30 text-primary bg-primary/5 font-bold text-[10px]">
+                                                {sub.payment_method?.replace('_', ' ')}
+                                            </Badge>
+                                            <span className="font-mono text-[10px] opacity-70 truncate max-w-[120px]">{sub.payment_reference || 'لا يوجد مرجع'}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        {sub.payment_proof_url ? (
+                                            <a href={sub.payment_proof_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-primary hover:text-primary/70 transition-colors text-xs font-bold">
+                                                <ExternalLink className="w-3.5 h-3.5" /> عرض
+                                            </a>
+                                        ) : (
+                                            <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-tighter italic">لا توجد صورة</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="py-4 text-xs font-medium opacity-80">
+                                        {formatDate(sub.created_at)}
+                                    </TableCell>
+                                    <TableCell className="py-4 text-right">
+                                        <div className="flex justify-end gap-3">
+                                            <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 h-8"
+                                                onClick={() => {
+                                                    if (confirm('Reject this subscription payment?'))
+                                                        rejectSubscription.mutate({ subscriptionId: sub.id });
+                                                }}
+                                                disabled={rejectSubscription.isPending || approveSubscription.isPending}>
+                                                <XCircle className="w-4 h-4 mr-1.5" /> Reject
+                                            </Button>
+                                            <Button size="sm" className="bg-green-600 hover:bg-green-500 text-white h-8 font-bold shadow-lg shadow-green-500/20"
+                                                onClick={() => approveSubscription.mutate(sub.id)}
+                                                disabled={approveSubscription.isPending || rejectSubscription.isPending}>
+                                                <CheckCircle className="w-4 h-4 mr-1.5" /> Approve
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function AdminDashboard() {
 
     const { user, isLoading: authLoading } = useAuth();
@@ -554,7 +741,7 @@ export default function AdminDashboard() {
     const { data: requestsResponse, isLoading: commissionsLoading } = useDesignRequests({ page: commissionPage });
 
     const searchParams = new URLSearchParams(window.location.search);
-    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'orders');
+    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -580,50 +767,115 @@ export default function AdminDashboard() {
             <div className="flex-1 container mx-auto px-4 py-8 pt-32">
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold font-serif">Admin Dashboard</h1>
-                        <p className="text-muted-foreground">Manage platform orders and sellers.</p>
+                        <h1 className="text-3xl font-bold font-serif">لوحة تحكم المسؤول</h1>
+                        <p className="text-muted-foreground">إدارة طلبات المنصة والمبدعين.</p>
                     </div>
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="mb-4">
+                    <TabsList className="mb-4 flex-wrap gap-2 h-auto">
+                        <TabsTrigger value="overview" className="gap-2">
+                            <Activity className="w-4 h-4" /> نظرة عامة
+                        </TabsTrigger>
+                        <TabsTrigger value="users" className="gap-2">
+                            <UsersIcon className="w-4 h-4" /> المستخدمين والكُتاب
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className="gap-2">
+                            <Shield className="w-4 h-4" /> الأمان
+                        </TabsTrigger>
+                        <TabsTrigger value="reports" className="gap-2">
+                            <Flag className="w-4 h-4" /> البلاغات
+                        </TabsTrigger>
+                        <TabsTrigger value="moderation" className="gap-2">
+                            <BookMarked className="w-4 h-4" /> مراجعة المحتوى
+                        </TabsTrigger>
+                        <TabsTrigger value="financials" className="gap-2">
+                            <DollarSign className="w-4 h-4" /> المالية
+                        </TabsTrigger>
                         <TabsTrigger value="orders" className="gap-2">
-                            <AlertTriangle className="w-4 h-4" /> Pending Orders
+                            <AlertTriangle className="w-4 h-4" /> في انتظار التأكيد
+                        </TabsTrigger>
+                        <TabsTrigger value="global_orders" className="gap-2">
+                            <Package className="w-4 h-4" /> الطلبات العالمية
                         </TabsTrigger>
                         <TabsTrigger value="sellers" className="gap-2">
-                            <Users className="w-4 h-4" /> Manage Sellers
+                            <Users className="w-4 h-4" /> إدارة المبدعين
                         </TabsTrigger>
                         <TabsTrigger value="payouts" className="gap-2">
-                            <Wallet className="w-4 h-4" /> Payout Requests
+                            <Wallet className="w-4 h-4" /> طلبات السحب
                         </TabsTrigger>
                         <TabsTrigger value="physical" className="gap-2">
-                            <Truck className="w-4 h-4" /> Physical Shipments
+                            <Truck className="w-4 h-4" /> الشحنات المادية
+                        </TabsTrigger>
+                        <TabsTrigger value="subscriptions" className="gap-2">
+                            <Lock className="w-4 h-4" /> الاشتراكات
                         </TabsTrigger>
                         <TabsTrigger value="media" className="gap-2">
-                            <Video className="w-4 h-4" /> Media Hub
+                            <Video className="w-4 h-4" /> مركز الوسائط
                         </TabsTrigger>
                         <TabsTrigger value="messaging" className="gap-2 relative">
                             <MessageSquare className="w-4 h-4" />
-                            Messaging
+                            الرسائل
                             {unreadCount > 0 && (
                                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold border-2 border-background">
                                     {unreadCount}
                                 </span>
                             )}
                         </TabsTrigger>
+                        <TabsTrigger value="marketing" className="gap-2">
+                            <Megaphone className="w-4 h-4" /> التسويق
+                        </TabsTrigger>
+                        <TabsTrigger value="community" className="gap-2">
+                            <MessageCircle className="w-4 h-4" /> المجتمع
+                        </TabsTrigger>
+                        <TabsTrigger value="settings" className="gap-2">
+                            <Settings className="w-4 h-4" /> الإعدادات
+                        </TabsTrigger>
                         <TabsTrigger value="commissions" className="gap-2 relative">
-                            <PenTool className="w-4 h-4" /> Design Commissions
+                            <PenTool className="w-4 h-4" /> طلبات التصميم
                             {requestsResponse?.data?.some((r: any) => r.status === 'payment_under_review') && (
                                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-600 rounded-full animate-pulse" />
                             )}
                         </TabsTrigger>
                         <TabsTrigger value="history" className="gap-2">
-                            <History className="w-4 h-4" /> Global History
+                            <History className="w-4 h-4" /> السجل العام
                         </TabsTrigger>
                     </TabsList>
 
+                    <TabsContent value="overview">
+                        <OverviewAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="users">
+                        <UsersAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="security">
+                        <SecurityAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="reports">
+                        <ReportsAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="moderation">
+                        <ContentModerationAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="financials">
+                        <FinancialsAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="global_orders">
+                        <GlobalOrdersAdmin />
+                    </TabsContent>
+
                     <TabsContent value="commissions">
                         <CommissionsAdmin requestsResponse={requestsResponse} isLoading={commissionsLoading} />
+                    </TabsContent>
+
+                    <TabsContent value="subscriptions">
+                        <SubscriptionsAdmin />
                     </TabsContent>
 
                     <TabsContent value="messaging">
@@ -651,8 +903,8 @@ export default function AdminDashboard() {
                             <CardHeader className="bg-white/5 border-b border-white/5">
                                 <div className="flex justify-between items-center">
                                     <div>
-                                        <CardTitle className="text-2xl text-gradient">Pending Local Payments</CardTitle>
-                                        <CardDescription>Run through the list of orders awaiting verification.</CardDescription>
+                                        <CardTitle className="text-2xl text-gradient">المدفوعات المحلية المعلقة</CardTitle>
+                                        <CardDescription>قم بمراجعة قائمة الطلبات التي تنتظر التأكيد.</CardDescription>
                                     </div>
                                     <AlertTriangle className="w-8 h-8 text-primary/40" />
                                 </div>
@@ -661,21 +913,22 @@ export default function AdminDashboard() {
                                 {(!pendingOrders || pendingOrders.length === 0) ? (
                                     <div className="text-center py-12 text-muted-foreground">
                                         <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500/50" />
-                                        <p>No pending orders to verify.</p>
+                                        <p>لا توجد طلبات معلقة للمراجعة.</p>
                                     </div>
                                 ) : (
                                     <Table>
                                         <TableHeader className="bg-white/5">
                                             <TableRow className="border-white/10 hover:bg-transparent">
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Order ID</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Type</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">User / Customer</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Amount</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Method</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Reference</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Proof</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">Date</TableHead>
-                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4 text-right">Actions</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">رقم الطلب</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">النوع</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المستخدم / العميل</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المنتجات</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الطريقة</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المرجع</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الإثبات</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">التاريخ</TableHead>
+                                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4 text-right">إجراءات</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -685,24 +938,34 @@ export default function AdminDashboard() {
                                                     <TableCell className="py-4">
                                                         {order.shipping_address ? (
                                                             <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 gap-1.5 font-bold text-[10px] uppercase">
-                                                                <Truck className="w-3 h-3" /> Physical
+                                                                <Truck className="w-3 h-3" /> مادي
                                                             </Badge>
                                                         ) : (
                                                             <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 gap-1.5 font-bold text-[10px] uppercase">
-                                                                <CreditCard className="w-3 h-3" /> Digital
+                                                                <CreditCard className="w-3 h-3" /> رقمي
                                                             </Badge>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="py-4">
                                                         <span className="font-bold text-foreground text-sm">{order.user?.display_name || order.user_id}</span>
                                                     </TableCell>
-                                                    <TableCell className="py-4 font-black text-primary">{order.total_amount} <span className="text-[10px]">EGP</span></TableCell>
+                                                    <TableCell className="py-4">
+                                                        <div className="flex flex-col gap-1">
+                                                            {order.order_items?.map((item: any, i: number) => (
+                                                                <div key={i} className="text-xs flex items-center gap-1">
+                                                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-white/20">{item.quantity}x</Badge>
+                                                                    <span className="text-foreground truncate max-w-[150px]">{item.product?.title || 'منتج غير معروف'}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="py-4 font-black text-primary">{order.total_amount} <span className="text-[10px]">ج.م</span></TableCell>
                                                     <TableCell className="py-4">
                                                         <Badge variant="outline" className="capitalize border-primary/30 text-primary bg-primary/5 font-bold text-[10px]">
                                                             {order.payment_method?.replace('_', ' ')}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="py-4 font-mono text-xs opacity-70">{order.payment_reference || 'N/A'}</TableCell>
+                                                    <TableCell className="py-4 font-mono text-xs opacity-70">{order.payment_reference || 'غير متوفر'}</TableCell>
                                                     <TableCell className="py-4">
                                                         {order.payment_proof_url ? (
                                                             <a
@@ -711,10 +974,10 @@ export default function AdminDashboard() {
                                                                 rel="noopener noreferrer"
                                                                 className="flex items-center gap-1.5 text-primary hover:text-primary/70 transition-colors text-xs font-bold"
                                                             >
-                                                                <ExternalLink className="w-3.5 h-3.5" /> View
+                                                                <ExternalLink className="w-3.5 h-3.5" /> عرض
                                                             </a>
                                                         ) : (
-                                                            <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-tighter italic">No image</span>
+                                                            <span className="text-muted-foreground text-[10px] uppercase font-bold tracking-tighter italic">لا توجد صورة</span>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="py-4 text-xs font-medium opacity-80">
@@ -727,12 +990,12 @@ export default function AdminDashboard() {
                                                                 variant="ghost"
                                                                 className="text-destructive hover:bg-destructive/10 h-8"
                                                                 onClick={() => {
-                                                                    if (confirm('Are you sure you want to reject and cancel this order?'))
+                                                                    if (confirm('هل أنت متأكد أنك تريد رفض وإلغاء هذا الطلب؟'))
                                                                         rejectOrder.mutate(order.id);
                                                                 }}
                                                                 disabled={rejectOrder.isPending || verifyOrder.isPending}
                                                             >
-                                                                <XCircle className="w-4 h-4 mr-1.5" /> Reject
+                                                                <XCircle className="w-4 h-4 mr-1.5" /> رفض
                                                             </Button>
                                                             <Button
                                                                 size="sm"
@@ -741,7 +1004,7 @@ export default function AdminDashboard() {
                                                                 disabled={verifyOrder.isPending || rejectOrder.isPending}
                                                             >
                                                                 <CheckCircle className="w-4 h-4 mr-1.5" />
-                                                                {verifyOrder.isPending ? '...' : 'Approve'}
+                                                                {verifyOrder.isPending ? '...' : 'تأكيد'}
                                                             </Button>
                                                         </div>
                                                     </TableCell>
@@ -757,8 +1020,8 @@ export default function AdminDashboard() {
                     <TabsContent value="sellers">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Platform Sellers</CardTitle>
-                                <CardDescription>Manage writers and artists. Freeze accounts if needed.</CardDescription>
+                                <CardTitle>مبدعو المنصة</CardTitle>
+                                <CardDescription>إدارة الكُتاب والفنانين. تجميد الحسابات إذا لزم الأمر.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {sellersLoading ? (
@@ -767,11 +1030,11 @@ export default function AdminDashboard() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>User</TableHead>
-                                                <TableHead>Role</TableHead>
-                                                <TableHead>Email</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
+                                                <TableHead>المستخدم</TableHead>
+                                                <TableHead>الدور</TableHead>
+                                                <TableHead>البريد الإلكتروني</TableHead>
+                                                <TableHead>الحالة</TableHead>
+                                                <TableHead className="text-right">إجراءات</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -786,14 +1049,14 @@ export default function AdminDashboard() {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="capitalize badge-cell">
-                                                        <Badge variant="secondary">{seller.role}</Badge>
+                                                        <Badge variant="secondary">{seller.role === 'writer' ? 'كاتب' : seller.role === 'artist' ? 'فنان' : seller.role}</Badge>
                                                     </TableCell>
                                                     <TableCell className="font-mono text-xs">{seller.email}</TableCell>
                                                     <TableCell>
                                                         {seller.is_active ? (
-                                                            <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>
+                                                            <Badge className="bg-green-500 hover:bg-green-600">نشط</Badge>
                                                         ) : (
-                                                            <Badge variant="destructive">Frozen</Badge>
+                                                            <Badge variant="destructive">مجمد</Badge>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right">
@@ -805,7 +1068,7 @@ export default function AdminDashboard() {
                                                             disabled={freezeSeller.isPending}
                                                         >
                                                             {seller.is_active ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                                                            {seller.is_active ? "Freeze" : "Unfreeze"}
+                                                            {seller.is_active ? "تجميد" : "إلغاء التجميد"}
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
@@ -813,7 +1076,7 @@ export default function AdminDashboard() {
                                             {(!sellers || sellers.length === 0) && (
                                                 <TableRow>
                                                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                        No sellers found.
+                                                        لا يوجد مبدعين.
                                                     </TableCell>
                                                 </TableRow>
                                             )}
@@ -822,6 +1085,22 @@ export default function AdminDashboard() {
                                 )}
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    <TabsContent value="subscriptions">
+                        <SubscriptionsAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="marketing">
+                        <MarketingAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="community">
+                        <CommunityAdmin />
+                    </TabsContent>
+
+                    <TabsContent value="settings">
+                        <SettingsAdmin />
                     </TabsContent>
                 </Tabs>
             </div>

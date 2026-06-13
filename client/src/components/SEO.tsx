@@ -20,8 +20,8 @@ export function SEO({
 }: SEOProps) {
     const { i18n, t } = useTranslation();
     const siteTitle = 'Hekayaty - حكاياتي';
-    const fullTitle = title ? `${title} | ${siteTitle}` : `${siteTitle} | ${t("hero.tagline", "Every Writer Deserves a World")}`;
-    const defaultDescription = t("hero.subtitle", "Build your own digital bookstore, connect with readers, and sell your stories directly. The universe for storytellers and worldbuilders.");
+    const fullTitle = title ? `${title} | ${siteTitle}` : `${siteTitle} | ${t("hero.tagline", "كل قاص يستحق عالماً")}`;
+    const defaultDescription = t("hero.subtitle", "قم ببناء متجرك الرقمي، تواصل مع القراء، وبع قصصك مباشرة. الكون الخاص بالرواة وبناة العوالم.");
     const keywords = "storytelling, Arabic stories, novels, fantasy stories, Middle East creators, Hekayaty, حكاياتي, digital publishing, روايات عربية, قصص";
     
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://hekayaty.com';

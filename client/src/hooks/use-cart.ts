@@ -3,6 +3,7 @@ import { type InsertCartItem, type CartItem, type Product, type Variant, type Co
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { supabase } from "@/lib/supabase"; // Direct supabase usage
+import { apiRequest } from "@/lib/queryClient";
 
 type CartItemWithDetails = CartItem & {
     product: Product | null;
@@ -102,46 +103,12 @@ async function callEdgeFunction(
     data?: any,
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'POST'
 ) {
-    console.log(`🚀 callEdgeFunction: Calling ${functionName} [${method}]`, data);
-
     try {
-        const { data: responseData, error } = await supabase.functions.invoke(functionName, {
-            method,
-            body: data,
-        });
-
-        if (error) {
-            console.error(`❌ Edge Function Error [${functionName}]:`, error);
-
-            // Retry once on 401
-            const status = (error as any).status || (error as any).context?.status;
-            if (status === 401) {
-                console.log("🔄 401 detected, attempting session refresh and retry...");
-                await supabase.auth.refreshSession();
-                const { data: retryData, error: retryError } = await supabase.functions.invoke(functionName, {
-                    method,
-                    body: data,
-                });
-
-                if (!retryError) {
-                    console.log("🎊 Retry Success!");
-                    return retryData;
-                }
-                throw new Error(retryError.message || `Failed to call ${functionName} after retry`);
-            }
-            throw new Error(error.message || `Failed to call ${functionName}`);
-        }
-
-        if (responseData?.error) {
-            throw new Error(responseData.error);
-        }
-
-        console.log(`✅ callEdgeFunction Success [${functionName}]:`, responseData);
-        return responseData;
-
-    } catch (error: any) {
-        console.error(`❌ callEdgeFunction Exception [${functionName}]:`, error);
-        throw error;
+        const url = `/api/edge/${functionName}`;
+        const res = await apiRequest(method, url, method === 'GET' ? undefined : data);
+        return await res.json();
+    } catch (err: any) {
+        throw err;
     }
 }
 

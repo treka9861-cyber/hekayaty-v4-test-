@@ -15,7 +15,10 @@ import { useTranslation } from "react-i18next";
 export default function MakerOrders() {
     const { t } = useTranslation();
     const [statusFilter, setStatusFilter] = useState<string | undefined>();
-    const { data: orders = [], isLoading } = useMakerOrders(statusFilter);
+    const { data: rawOrders = [], isLoading } = useMakerOrders(statusFilter);
+    const orders = [...rawOrders].sort((a: MakerOrder, b: MakerOrder) =>
+        new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime()
+    );
     const acceptOrder = useAcceptOrder();
     const rejectOrder = useRejectOrderItem();
     const updateShipment = useUpdateShipment();
@@ -341,7 +344,7 @@ export default function MakerOrders() {
                                 id="tracking-number"
                                 value={trackingNumber}
                                 onChange={(e) => setTrackingNumber(e.target.value)}
-                                placeholder="e.g., 1Z999AA10123456784"
+                                placeholder="مثال: 1Z999AA10123456784"
                                 className="mt-2"
                             />
                         </div>
@@ -351,7 +354,7 @@ export default function MakerOrders() {
                                 id="carrier"
                                 value={carrier}
                                 onChange={(e) => setCarrier(e.target.value)}
-                                placeholder="e.g., DHL, Aramex, FedEx"
+                                placeholder="مثال: DHL، أرامكس، فيديكس"
                                 className="mt-2"
                             />
                         </div>

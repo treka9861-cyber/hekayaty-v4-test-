@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 
 export default function OrderTracking() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { data: orders = [], isLoading } = useUserOrders();
     const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
 

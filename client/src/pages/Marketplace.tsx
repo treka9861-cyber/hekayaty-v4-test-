@@ -4,7 +4,7 @@ import { Footer } from "@/components/Footer";
 import { useProducts } from "@/hooks/use-products";
 import { useCollections } from "@/hooks/use-collections";
 import { ProductCard } from "@/components/ProductCard";
-import { Search, Book, Palette, Layers, LayoutGrid, ShoppingBag, Loader2, Sparkles, Filter } from "lucide-react";
+import { Search, Book, Palette, Layers, LayoutGrid, ShoppingBag, Loader2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 import marketplaceBg from "@/assets/d2c8245c-c591-4cc9-84d2-27252be8dffb.png";
@@ -124,31 +124,31 @@ export default function Marketplace() {
       <div className="relative z-10 flex flex-col min-h-screen">
         <Navbar />
 
-        <main className="flex-grow pt-40 pb-32">
+        <main className="flex-grow pt-24 sm:pt-40 pb-16 sm:pb-32">
           <div className="container-responsive max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
             {/* Premium Hero Header */}
-            <div className="mb-24 text-center">
+            <div className="mb-10 sm:mb-24 text-center">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
               >
-                <h1 className="text-5xl md:text-7xl font-serif font-black mb-8 text-white tracking-tight leading-[1.1]">
+                <h1 className="text-3xl sm:text-5xl md:text-7xl font-serif font-black mb-4 sm:mb-8 text-white tracking-tight leading-[1.1]">
                   {getPageTitle()}
                 </h1>
-                <p className="text-white/60 text-lg md:text-xl max-w-3xl mx-auto leading-relaxed font-medium">
+                <p className="text-white/60 text-sm sm:text-lg md:text-xl max-w-3xl mx-auto leading-relaxed font-medium">
                   {getPageSubtitle()}
                 </p>
               </motion.div>
             </div>
 
             {/* Control Bar (Tabs, Search, Sort) */}
-            <div className="sticky top-24 z-40 mb-16 space-y-8">
+            <div className="sticky top-16 sm:top-24 z-40 mb-8 sm:mb-16 space-y-4 sm:space-y-8">
               
               {/* Filter Tabs Container */}
               <div className="max-w-5xl mx-auto">
-                <div className="p-1.5 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl flex flex-wrap gap-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                <div className="p-1 sm:p-1.5 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-3xl flex overflow-x-auto gap-1 sm:gap-1.5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] scrollbar-hide">
                   {[
                     { id: "ebook", label: t("marketplace.tabs.stories"), icon: Book },
                     { id: "serialized", label: t("marketplace.tabs.serialized"), icon: Layers },
@@ -162,13 +162,13 @@ export default function Marketplace() {
                         key={tab.id}
                         onClick={() => handleTypeChange(tab.id as any)}
                         className={cn(
-                          "flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-black transition-all duration-500 flex-1 md:flex-none justify-center group",
+                          "flex items-center gap-1.5 sm:gap-3 px-3 sm:px-8 py-2.5 sm:py-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all duration-500 flex-shrink-0 justify-center group whitespace-nowrap",
                           isActive
                             ? (tab.id === "serialized" ? "bg-amber-500 text-white shadow-xl shadow-amber-500/30 scale-[1.05]" : "bg-primary text-white shadow-xl shadow-primary/30 scale-[1.05]")
                             : "text-white/40 hover:text-white hover:bg-white/5"
                         )}
                       >
-                        <tab.icon className={cn("w-4 h-4 transition-transform duration-500 group-hover:scale-125", isActive ? "scale-110" : "")} />
+                        <tab.icon className={cn("w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-500 group-hover:scale-125", isActive ? "scale-110" : "")} />
                         <span className="tracking-wide">{tab.label}</span>
                       </button>
                     );
@@ -177,10 +177,10 @@ export default function Marketplace() {
               </div>
 
               {/* Search and Sort Area */}
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6 max-w-5xl mx-auto w-full">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-6 max-w-5xl mx-auto w-full">
                 <div className="relative group w-full">
-                  <div className="absolute inset-y-0 right-6 flex items-center pointer-events-none z-10">
-                    <Search className="w-5 h-5 text-white/20 group-focus-within:text-primary transition-colors duration-300" />
+                  <div className="absolute inset-y-0 right-4 sm:right-6 flex items-center pointer-events-none z-10">
+                    <Search className="w-4 h-4 sm:w-5 sm:h-5 text-white/20 group-focus-within:text-primary transition-colors duration-300" />
                   </div>
                   <input
                     type="text"
@@ -190,31 +190,28 @@ export default function Marketplace() {
                         ? t("marketplace.assetsSearchPlaceholder")
                         : type === "merchandise"
                           ? t("marketplace.merchandiseSearchPlaceholder")
-                          : t("marketplace.searchPlaceholder", "Search by title, publisher, or keywords (romance, horror...)")
+                          : t("marketplace.searchPlaceholder", "ابحث بالعنوان، الناشر، أو الكلمات المفتاحية...")
                     }
-                    className="w-full pr-16 pl-32 py-6 rounded-[2rem] bg-white/[0.03] backdrop-blur-3xl border border-white/10 text-white focus:ring-4 focus:ring-primary/10 focus:border-primary/50 transition-all duration-500 outline-none placeholder:text-white/20 text-lg shadow-[0_10px_40px_rgba(0,0,0,0.3)] group-hover:bg-white/[0.05]"
+                    className="w-full pr-10 sm:pr-16 pl-24 sm:pl-32 py-3.5 sm:py-6 rounded-2xl sm:rounded-[2rem] bg-white/[0.03] backdrop-blur-3xl border border-white/10 text-white focus:ring-4 focus:ring-primary/10 focus:border-primary/50 transition-all duration-500 outline-none placeholder:text-white/20 text-sm sm:text-lg shadow-[0_10px_40px_rgba(0,0,0,0.3)] group-hover:bg-white/[0.05]"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
-                  <div className="absolute inset-y-2 left-2 flex items-center">
-                    <button className="h-full px-8 rounded-[1.5rem] bg-primary text-black font-black text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20">
-                      {t("common.search") || "Search"}
+                  <div className="absolute inset-y-1.5 left-1.5 flex items-center">
+                    <button className="h-full px-4 sm:px-8 rounded-xl sm:rounded-[1.5rem] bg-primary text-black font-black text-xs sm:text-sm uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-primary/20">
+                      {t("common.search") || "بحث"}
                     </button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full md:w-auto shrink-0">
-                   <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white/60 text-xs font-bold whitespace-nowrap">
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto shrink-0">
+                   <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white/60 text-xs font-bold whitespace-nowrap">
                       <span className="text-primary font-black">{displayItems.length}</span>
-                      <span>{t("marketplace.results") || "Results"}</span>
-                   </div>
-                   <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-white/40 hover:text-primary hover:border-primary/30 transition-all cursor-pointer">
-                      <Filter className="w-5 h-5" />
+                      <span>{t("marketplace.results") || "النتائج"}</span>
                    </div>
                    <SortSelector
                     value={sortBy}
                     onValueChange={setSortBy}
-                    className="flex-grow md:flex-none min-w-[180px]"
+                    className="flex-1 sm:flex-none min-w-0 sm:min-w-[180px]"
                   />
                 </div>
               </div>
@@ -228,10 +225,10 @@ export default function Marketplace() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10"
+                  className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 md:gap-10"
                 >
                   {Array(8).fill(0).map((_, i) => (
-                    <div key={i} className="aspect-[3/4] rounded-[2rem] bg-white/5 border border-white/10 animate-pulse" />
+                    <div key={i} className="aspect-[3/4] rounded-2xl sm:rounded-[2rem] bg-white/5 border border-white/10 animate-pulse" />
                   ))}
                 </motion.div>
               ) : displayItems.length > 0 ? (
@@ -240,7 +237,7 @@ export default function Marketplace() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-10"
+                  className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 md:gap-10"
                 >
                   {displayItems.map((item: any) => (
                     <div key={item.id} className="gpu will-change-transform">
