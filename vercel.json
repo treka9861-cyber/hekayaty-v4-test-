@@ -3,14 +3,15 @@
     "buildCommand": "npm run build",
     "outputDirectory": "dist/public",
     "functions": {
-        "api/index.js": {
-            "maxDuration": 30
+        "api/index.ts": {
+            "maxDuration": 30,
+            "includeFiles": "server/**,shared/**"
         }
     },
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "/api/index.js"
+            "dest": "/api/index.ts"
         },
         {
             "handle": "filesystem"

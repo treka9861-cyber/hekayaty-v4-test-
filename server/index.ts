@@ -134,7 +134,9 @@ const setupPromise = (async () => {
     if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
       serveStatic(app);
     } else if (!process.env.VERCEL) {
-      const { setupVite } = await import("./vite");
+      // Use string concatenation to prevent @vercel/node's esbuild from statically bundling vite
+      const vitePath = "." + "/vite";
+      const { setupVite } = await import(vitePath);
       await setupVite(httpServer, app);
     }
   } catch (error: any) {
