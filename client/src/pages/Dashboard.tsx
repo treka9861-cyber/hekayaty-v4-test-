@@ -1808,16 +1808,15 @@ function ReaderLibraryContent({ user }: { user: any }) {
                         <TableCell className="text-right align-top pt-4">
                           {sub.status === 'active' ? (
                             <div className="flex items-center gap-2 justify-end">
-                                <Link href={`/writer/${sub.creator_username}?tab=memberships`}>
-                                    <Button 
-                                        size="sm" 
-                                        variant="outline"
-                                        className={`font-bold rounded-full gap-2 ${pendingUpgrade ? 'opacity-50 cursor-not-allowed' : 'border-amber-500/20 text-amber-500 hover:bg-amber-500/10'}`}
-                                        disabled={!!pendingUpgrade}
-                                    >
-                                        <Crown className="w-4 h-4" /> {pendingUpgrade ? 'طلب ترقية قيد الانتظار' : 'إدارة / ترقية بالمتجر'}
-                                    </Button>
-                                </Link>
+                                <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className={`font-bold rounded-full gap-2 ${pendingUpgrade ? 'opacity-50 cursor-not-allowed' : 'border-amber-500/20 text-amber-500 hover:bg-amber-500/10'}`}
+                                    onClick={() => !pendingUpgrade && handleUpgradeClick(sub)}
+                                    disabled={!!pendingUpgrade}
+                                >
+                                    <Crown className="w-4 h-4" /> {pendingUpgrade ? 'طلب ترقية قيد الانتظار' : 'ترقية الاشتراك'}
+                                </Button>
                                 <Link href={`/writer/${sub.creator_username}`}>
                                   <Button size="sm" className="bg-primary hover:bg-primary/90 gap-2 font-bold rounded-full">
                                     <Unlock className="w-4 h-4" /> فتح المكتبة
