@@ -26,6 +26,8 @@ import getPendingSubscriptionsRoutes from './get-pending-subscriptions.routes';
 import approveSubscriptionRoutes from './approve-subscription.routes';
 import rejectSubscriptionRoutes from './reject-subscription.routes';
 import getUserSubscriptionsRoutes from './get-user-subscriptions.routes';
+import upgradeSubscriptionPreviewRoutes from './upgrade-subscription-preview.routes';
+import upgradeSubscriptionRoutes from './upgrade-subscription.routes';
 
 const router = Router();
 
@@ -56,5 +58,7 @@ router.use('/get-pending-subscriptions', getPendingSubscriptionsRoutes);
 router.use('/approve-subscription', approveSubscriptionRoutes);
 router.use('/reject-subscription', rejectSubscriptionRoutes);
 router.use('/get-user-subscriptions', getUserSubscriptionsRoutes);
+router.use('/upgrade-subscription-preview', upgradeSubscriptionPreviewRoutes);
+router.use('/upgrade-subscription', upgradeSubscriptionRoutes);
 
 export default router;

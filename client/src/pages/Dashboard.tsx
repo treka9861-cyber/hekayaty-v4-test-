@@ -58,6 +58,7 @@ const CloudinaryGalleryUpload = lazy(() => import("@/components/ui/cloudinary-ga
 const UniverseManager = lazy(() => import("@/components/dashboard/UniverseManager").then(m => ({ default: m.UniverseManager })));
 const CommunityManager = lazy(() => import("@/components/dashboard/CommunityManager").then(m => ({ default: m.CommunityManager })));
 const MembershipManager = lazy(() => import("@/components/memberships/MembershipManager").then(m => ({ default: m.MembershipManager })));
+const SubscriptionUpgradeModal = lazy(() => import("@/components/memberships/SubscriptionUpgradeModal").then(m => ({ default: m.SubscriptionUpgradeModal })));
 
 // Instant Skeleton State
 const DashboardSkeleton = () => <PageSkeleton />;
@@ -1510,6 +1511,21 @@ function ReaderLibraryContent({ user }: { user: any }) {
   const { data: subscriptions, isLoading: subsLoading } = useUserSubscriptions();
   const { data: explicitLibrary, isLoading: explicitLibraryLoading } = useLibraryItems();
 
+  const [upgradeSubscription, setUpgradeSubscription] = useState<any>(null);
+  const [plansForUpgrade, setPlansForUpgrade] = useState<any[]>([]);
+
+  // Function to load plans and open upgrade modal
+  const handleUpgradeClick = async (subscription: any) => {
+    try {
+        const res = await fetch(`/api/memberships/plans?storeId=${subscription.creator_id}`);
+        const data = await res.json();
+        setPlansForUpgrade(data);
+        setUpgradeSubscription(subscription);
+    } catch (err) {
+        console.error("Failed to load plans for upgrade", err);
+    }
+  };
+
   const isLoading = ordersLoading || subsLoading || explicitLibraryLoading;
 
   // order.order_items is an array of {id, productId, product: {title, coverUrl, type}, ...}
@@ -1735,11 +1751,21 @@ function ReaderLibraryContent({ user }: { user: any }) {
                         </TableCell>
                         <TableCell className="text-right">
                           {sub.status === 'active' ? (
-                            <Link href={`/writer/${sub.creator_username}`}>
-                              <Button size="sm" className="bg-primary hover:bg-primary/90 gap-2 font-bold rounded-full">
-                                <Unlock className="w-4 h-4" /> فتح المكتبة
-                              </Button>
-                            </Link>
+                            <div className="flex items-center gap-2 justify-end">
+                                <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    className="border-amber-500/20 text-amber-500 hover:bg-amber-500/10 font-bold rounded-full gap-2"
+                                    onClick={() => handleUpgradeClick(sub)}
+                                >
+                                    <Crown className="w-4 h-4" /> Upgrade Plan
+                                </Button>
+                                <Link href={`/writer/${sub.creator_username}`}>
+                                  <Button size="sm" className="bg-primary hover:bg-primary/90 gap-2 font-bold rounded-full">
+                                    <Unlock className="w-4 h-4" /> فتح المكتبة
+                                  </Button>
+                                </Link>
+                            </div>
                           ) : sub.status === 'pending' ? (
                             <span className="text-xs text-muted-foreground">في انتظار الموافقة...</span>
                           ) : (
@@ -1752,6 +1778,17 @@ function ReaderLibraryContent({ user }: { user: any }) {
                 </Table>
               </div>
             )}
+            
+            <Suspense fallback={null}>
+                {upgradeSubscription && (
+                    <SubscriptionUpgradeModal
+                        isOpen={!!upgradeSubscription}
+                        onClose={() => setUpgradeSubscription(null)}
+                        subscription={upgradeSubscription}
+                        plans={plansForUpgrade}
+                    />
+                )}
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

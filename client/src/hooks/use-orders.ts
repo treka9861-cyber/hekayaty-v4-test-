@@ -161,3 +161,28 @@ export function useUserSubscriptions() {
     });
 }
 
+export function useUpgradePreview() {
+    return useMutation({
+        mutationFn: async (data: { subscriptionId: number; targetPricingId: number }) => {
+            return callEdgeFunction('upgrade-subscription-preview', data);
+        }
+    });
+}
+
+export function useUpgradeSubscription() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (data: { 
+            subscriptionId: number; 
+            targetPricingId: number; 
+            paymentProofUrl?: string; 
+            paymentReference?: string 
+        }) => {
+            return callEdgeFunction('upgrade-subscription', data);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['/api/edge/get-user-subscriptions'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/orders/user'] }); // Invalidate orders just in case
+        }
+    });
+}
