@@ -761,28 +761,47 @@ function UpgradeRequestsAdmin() {
                                 <TableRow key={req.id} className="border-white/5 hover:bg-white/5 transition-colors">
                                     <TableCell className="py-4">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-foreground text-sm">{req.subscription?.user?.display_name || 'غير معروف'}</span>
-                                            <span className="text-[10px] text-muted-foreground font-mono">{req.subscription?.user?.email}</span>
+                                            <span className="font-bold text-foreground text-sm">{req.user?.display_name || 'غير معروف'}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">{req.user?.email || 'بدون بريد'}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="py-4">
                                         <div className="flex flex-col gap-1">
-                                            <Badge variant="outline" className="w-fit">{req.subscription?.pricing?.billing_cycle}</Badge>
-                                            <span className="text-xs text-muted-foreground">ينتهي: {formatDate(req.subscription?.current_period_end)}</span>
+                                            <span className="font-bold text-xs">{req.plan?.name || 'غير معروف'}</span>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="w-fit text-[10px] py-0 h-4">{req.currentPricing?.billing_cycle}</Badge>
+                                                <span className="text-[10px] font-mono text-muted-foreground">
+                                                    {(req.currentPricing?.price_in_cents / 100).toFixed(0)} ج.م
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground mt-0.5">ينتهي: {formatDate(req.subscription?.current_period_end)}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="py-4">
                                         <div className="flex flex-col gap-1">
-                                            <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 w-fit">
-                                                {req.target_pricing?.billing_cycle}
-                                            </Badge>
+                                            <span className="font-bold text-xs">{req.targetPlan?.name || req.plan?.name || 'نفس الباقة'}</span>
+                                            <div className="flex items-center gap-2">
+                                                <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 w-fit text-[10px] py-0 h-4">
+                                                    {req.targetPricing?.billing_cycle}
+                                                </Badge>
+                                                <span className="text-[10px] font-mono text-muted-foreground">
+                                                    {(req.targetPricing?.price_in_cents / 100).toFixed(0)} ج.م
+                                                </span>
+                                            </div>
                                         </div>
                                     </TableCell>
                                     <TableCell className="py-4 font-black text-amber-500 text-lg">
-                                        {req.amount_due_cents / 100} <span className="text-xs">ج.م</span>
+                                        <div className="flex flex-col gap-1">
+                                            <span>
+                                                {((req.liveCalculation ? req.liveCalculation.amountDueCents : req.snapshot_amount_due_cents) / 100).toFixed(2)} <span className="text-xs">ج.م</span>
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground font-normal">
+                                                رصيد متبقي: {((req.liveCalculation ? req.liveCalculation.creditCents : req.snapshot_credit_cents) / 100).toFixed(2)} ج.م
+                                            </span>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="py-4">
-                                        {req.amount_due_cents > 0 ? (
+                                        {(req.liveCalculation ? req.liveCalculation.amountDueCents : req.snapshot_amount_due_cents) > 0 ? (
                                             <div className="flex flex-col gap-1">
                                                 <Badge variant="outline" className="capitalize w-fit border-primary/30 text-primary bg-primary/5 font-bold text-[10px]">
                                                     {req.payment_method?.replace('_', ' ')}

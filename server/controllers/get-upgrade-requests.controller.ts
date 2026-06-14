@@ -73,7 +73,10 @@ export const getUpgradeRequests = async (req: any, res: any) => {
             pricingIds.length > 0 ? supabaseAdmin.from('plan_pricing').select('id, plan_id, billing_cycle, price_in_cents').in('id', pricingIds) : { data: [] },
         ]);
 
-        const planIds = [...new Set((subscriptions || []).map((s: any) => s.plan_id).filter(Boolean))];
+        const planIds = [...new Set([
+            ...(subscriptions || []).map((s: any) => s.plan_id),
+            ...(pricings || []).map((p: any) => p.plan_id)
+        ].filter(Boolean))];
         const { data: plans } = planIds.length > 0
             ? await supabaseAdmin.from('membership_plans').select('id, name, club_id').in('id', planIds)
             : { data: [] };
@@ -99,6 +102,7 @@ export const getUpgradeRequests = async (req: any, res: any) => {
             const targetPricing = pricingMap.get(req.target_pricing_id);
             const plan = sub ? planMap.get(sub.plan_id) : null;
             const club = plan ? clubMap.get(plan.club_id) : null;
+            const targetPlan = targetPricing ? planMap.get(targetPricing.plan_id) : null;
 
             // Live recalculation (only for pending requests)
             let liveCalculation: any = null;
@@ -129,6 +133,7 @@ export const getUpgradeRequests = async (req: any, res: any) => {
                 currentPricing: currentPricing || null,
                 targetPricing: targetPricing || null,
                 plan: plan || null,
+                targetPlan: targetPlan || null,
                 club: club || null,
                 liveCalculation,
             };
