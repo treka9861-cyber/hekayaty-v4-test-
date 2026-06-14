@@ -2,11 +2,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, ExternalLink, AlertTriangle, Users, Lock, Unlock, Loader2, Wallet, Truck, History, PenTool, CreditCard, Video } from "lucide-react";
+import { CheckCircle, XCircle, ExternalLink, AlertTriangle, Users, Lock, Unlock, Loader2, Wallet, Truck, History, PenTool, CreditCard, Video, Crown } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
-import { useAdminOrders, useVerifyOrder, useRejectOrder, useAdminSellers, useFreezeSeller, useAdminPayouts, useApprovePayout, useAdminPayoutHistory, useAdminOrderHistory, usePendingSubscriptions, useApproveSubscription, useRejectSubscription, useAdminSubscriptionHistory } from "@/hooks/use-admin";
+import { useAdminOrders, useVerifyOrder, useRejectOrder, useAdminSellers, useFreezeSeller, useAdminPayouts, useApprovePayout, useAdminPayoutHistory, useAdminOrderHistory, usePendingSubscriptions, useApproveSubscription, useRejectSubscription, useAdminSubscriptionHistory, useUpgradeRequests, useApproveUpgradeRequest, useRejectUpgradeRequest } from "@/hooks/use-admin";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { PhysicalOrdersAdmin } from "./PhysicalOrdersAdmin";
@@ -721,6 +721,105 @@ function SubscriptionsAdmin() {
     );
 }
 
+function UpgradeRequestsAdmin() {
+    const { data: requests, isLoading } = useUpgradeRequests('pending');
+    const approveReq = useApproveUpgradeRequest();
+    const rejectReq = useRejectUpgradeRequest();
+
+    return (
+        <Card className="glass-card border-primary/20 bg-black/60 shadow-2xl overflow-hidden mt-6">
+            <CardHeader className="bg-white/5 border-b border-white/5">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle className="text-2xl text-gradient">طلبات الترقية المعلقة</CardTitle>
+                        <CardDescription>مراجعة طلبات ترقية الاشتراكات الحالية لدورات فوترة أعلى.</CardDescription>
+                    </div>
+                    <Crown className="w-8 h-8 text-primary/40" />
+                </div>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? <div className="p-8 text-center"><Loader2 className="animate-spin inline-block mr-2" /> جاري التحميل...</div> : 
+                 (!requests || requests.length === 0) ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500/50" />
+                        <p>لا توجد طلبات ترقية معلقة للمراجعة.</p>
+                    </div>
+                ) : (
+                    <Table>
+                        <TableHeader className="bg-white/5">
+                            <TableRow className="border-white/10 hover:bg-transparent">
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المستخدم</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الاشتراك الحالي</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الترقية المطلوبة</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">المبلغ المستحق</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4">الإثبات والمرجع</TableHead>
+                                <TableHead className="text-primary/70 font-bold uppercase text-xs tracking-wider py-4 text-right">إجراءات</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {requests.map((req: any) => (
+                                <TableRow key={req.id} className="border-white/5 hover:bg-white/5 transition-colors">
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-foreground text-sm">{req.subscription?.user?.display_name || 'غير معروف'}</span>
+                                            <span className="text-[10px] text-muted-foreground font-mono">{req.subscription?.user?.email}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <Badge variant="outline" className="w-fit">{req.subscription?.pricing?.billing_cycle}</Badge>
+                                            <span className="text-xs text-muted-foreground">ينتهي: {formatDate(req.subscription?.current_period_end)}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <Badge className="bg-amber-500/20 text-amber-500 border-amber-500/30 w-fit">
+                                                {req.target_pricing?.billing_cycle}
+                                            </Badge>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="py-4 font-black text-amber-500 text-lg">
+                                        {req.amount_due_cents / 100} <span className="text-xs">ج.م</span>
+                                    </TableCell>
+                                    <TableCell className="py-4">
+                                        {req.amount_due_cents > 0 ? (
+                                            <div className="flex flex-col gap-1">
+                                                <Badge variant="outline" className="capitalize w-fit border-primary/30 text-primary bg-primary/5 font-bold text-[10px]">
+                                                    {req.payment_method?.replace('_', ' ')}
+                                                </Badge>
+                                                <span className="font-mono text-[10px] opacity-70 truncate max-w-[120px]">{req.payment_reference || 'لا يوجد مرجع'}</span>
+                                            </div>
+                                        ) : (
+                                            <Badge className="bg-green-500/20 text-green-500">ترقية مجانية (رصيد)</Badge>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="py-4 text-right">
+                                        <div className="flex justify-end gap-3">
+                                            <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 h-8"
+                                                onClick={() => {
+                                                    if (confirm('رفض طلب الترقية؟'))
+                                                        rejectReq.mutate({ requestId: req.id });
+                                                }}
+                                                disabled={rejectReq.isPending || approveReq.isPending}>
+                                                <XCircle className="w-4 h-4 mr-1.5" /> رفض
+                                            </Button>
+                                            <Button size="sm" className="bg-amber-600 hover:bg-amber-500 text-white h-8 font-bold shadow-lg shadow-amber-500/20"
+                                                onClick={() => approveReq.mutate(req.id)}
+                                                disabled={approveReq.isPending || rejectReq.isPending}>
+                                                <CheckCircle className="w-4 h-4 mr-1.5" /> تأكيد
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function AdminDashboard() {
 
     const { user, isLoading: authLoading } = useAuth();
@@ -809,6 +908,9 @@ export default function AdminDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="subscriptions" className="gap-2">
                             <Lock className="w-4 h-4" /> الاشتراكات
+                        </TabsTrigger>
+                        <TabsTrigger value="upgrade_requests" className="gap-2">
+                            <Crown className="w-4 h-4" /> طلبات الترقية
                         </TabsTrigger>
                         <TabsTrigger value="media" className="gap-2">
                             <Video className="w-4 h-4" /> مركز الوسائط
@@ -1087,8 +1189,8 @@ export default function AdminDashboard() {
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="subscriptions">
-                        <SubscriptionsAdmin />
+                    <TabsContent value="upgrade_requests">
+                        <UpgradeRequestsAdmin />
                     </TabsContent>
 
                     <TabsContent value="marketing">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -45,21 +45,45 @@ export function SubscriptionUpgradeModal({ subscription, plans, isOpen, onClose 
     const currentPricingId = subscription?.pricing_id;
     const currentPricing = currentPlan?.pricing?.find((pr: any) => pr.id === currentPricingId);
     
-    // Available cycles for the SAME plan
-    const availablePricings = currentPlan?.pricing?.filter((pr: any) => pr.id !== currentPricingId && pr.is_active !== false) || [];
+    // Flatten all active pricings from ALL plans passed
+    const allAvailablePricings = plans?.flatMap(p => p.pricing || [])
+        .filter((pr: any) => pr.id !== currentPricingId && pr.is_active !== false) || [];
     
-    // Map of sorted options
-    const upgradeOptions = ALL_CYCLES.map(cycle => {
-        const pricing = availablePricings.find((pr: any) => pr.billing_cycle === cycle.id);
+    // Group options by plan and then cycle
+    const upgradeOptions = allAvailablePricings.map((pricing: any) => {
+        const plan = plans?.find(p => p.id === pricing.plan_id);
+        const cycle = ALL_CYCLES.find(c => c.id === pricing.billing_cycle);
         return {
-            ...cycle,
+            id: pricing.id,
+            planName: plan?.name,
+            cycleLabel: cycle?.label || pricing.billing_cycle,
+            price: pricing.price_in_cents,
             pricing
         };
-    }).filter(opt => opt.pricing);
+    }).sort((a, b) => a.price - b.price);
 
     const handleSelectTarget = (pricingId: number) => {
         setTargetPricingId(pricingId);
     };
+
+    useEffect(() => {
+        if (subscription?._targetPricingId && isOpen && step === 1 && !targetPricingId) {
+            setTargetPricingId(subscription._targetPricingId);
+            previewMutation.mutateAsync({
+                subscriptionId: subscription.id,
+                targetPricingId: subscription._targetPricingId
+            }).then(data => {
+                setPreviewData(data);
+                setStep(2);
+            }).catch(error => {
+                toast({
+                    title: "Failed to load preview",
+                    description: error.message || "An error occurred",
+                    variant: "destructive"
+                });
+            });
+        }
+    }, [subscription?._targetPricingId, isOpen]);
 
     const handlePreview = async () => {
         if (!targetPricingId) return;
@@ -92,7 +116,8 @@ export function SubscriptionUpgradeModal({ subscription, plans, isOpen, onClose 
                 subscriptionId: subscription.id,
                 targetPricingId,
                 paymentReference: previewData.amountDueCents > 0 ? reference : undefined,
-                paymentProofUrl: undefined // Not implemented in MVP
+                paymentProofUrl: undefined, // Not implemented in MVP
+                paymentMethod: previewData.amountDueCents > 0 ? paymentMethod : undefined
             });
             setStep(3); // Success step
         } catch (error: any) {
@@ -152,7 +177,7 @@ export function SubscriptionUpgradeModal({ subscription, plans, isOpen, onClose 
                                                 : 'bg-white/5 border-white/10 hover:border-white/20 text-white'
                                         }`}
                                     >
-                                        <span className="font-bold">{opt.label}</span>
+                                        <span className="font-bold">{opt.planName} - {opt.cycleLabel}</span>
                                         <span className="font-mono">{(opt.pricing.price_in_cents / 100).toFixed(0)} EGP</span>
                                     </button>
                                 ))}
@@ -254,7 +279,7 @@ export function SubscriptionUpgradeModal({ subscription, plans, isOpen, onClose 
                                 {upgradeMutation.isPending ? (
                                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</>
                                 ) : (
-                                    previewData.amountDueCents > 0 ? "Confirm Payment" : "Confirm Free Upgrade"
+                                    "Submit Request"
                                 )}
                             </Button>
                         </DialogFooter>
@@ -263,19 +288,15 @@ export function SubscriptionUpgradeModal({ subscription, plans, isOpen, onClose 
 
                 {step === 3 && (
                     <div className="py-10 flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center border border-emerald-500/30">
-                            <CheckCircle2 className="w-8 h-8" />
+                        <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center border border-amber-500/30">
+                            <Clock className="w-8 h-8" />
                         </div>
-                        <h3 className="text-2xl font-black text-white">Upgrade Successful!</h3>
+                        <h3 className="text-2xl font-black text-white">Request Submitted!</h3>
                         <p className="text-zinc-400">
-                            Your subscription has been upgraded to the <span className="font-bold text-white capitalize">{previewData?.targetBillingCycle}</span> cycle.
+                            Your upgrade request to the <span className="font-bold text-white capitalize">{previewData?.targetBillingCycle}</span> cycle has been submitted.
+                            <br/><br/>
+                            It is currently under admin review. Your current subscription remains active until the upgrade is approved.
                         </p>
-                        <div className="p-4 bg-white/5 border border-white/10 rounded-xl mt-4 w-full">
-                            <p className="text-sm text-zinc-400">New Expiration Date</p>
-                            <p className="text-lg font-bold text-amber-400">
-                                {new Date(previewData?.newPeriodEnd).toLocaleDateString()}
-                            </p>
-                        </div>
                         <Button onClick={resetAndClose} className="mt-8 w-full bg-white/10 hover:bg-white/20 text-white">
                             Close
                         </Button>

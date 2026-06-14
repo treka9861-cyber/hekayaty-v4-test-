@@ -176,13 +176,26 @@ export function useUpgradeSubscription() {
             subscriptionId: number; 
             targetPricingId: number; 
             paymentProofUrl?: string; 
-            paymentReference?: string 
+            paymentReference?: string;
+            paymentMethod?: string;
         }) => {
             return callEdgeFunction('upgrade-subscription', data);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['/api/edge/get-user-subscriptions'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/orders/user'] }); // Invalidate orders just in case
+            queryClient.invalidateQueries({ queryKey: ['/api/edge/get-user-upgrade-requests'] });
         }
+    });
+}
+
+export function useUserUpgradeRequests() {
+    return useQuery({
+        queryKey: ['/api/edge/get-user-upgrade-requests'],
+        queryFn: async () => {
+            return callEdgeFunction('get-user-upgrade-requests', {});
+        },
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: 'always'
     });
 }

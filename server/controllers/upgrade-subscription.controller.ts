@@ -1,16 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
+import { calculateProratedUpgrade } from './upgrade-subscription-preview.controller';
 
-// Helper function to calculate exact days in a billing cycle
 const getBillingCycleDays = (cycle: string): number => {
     switch (cycle) {
         case 'monthly': return 30;
         case 'quarterly': return 90;
         case 'semi_annual': return 180;
         case 'annual': return 365;
-        default: return 30; // Fallback
+        default: return 30;
     }
 };
 
+/**
+ * POST /api/edge/upgrade-subscription
+ * 
+ * Submits an upgrade REQUEST for admin review.
+ * Does NOT modify the creator_subscriptions row.
+ * The subscription remains fully active and unchanged.
+ * Only an admin approval can apply the actual upgrade.
+ */
 export const upgradeSubscription = async (req: any, res: any) => {
     try {
         const supabaseAdmin = createClient(
@@ -27,7 +35,7 @@ export const upgradeSubscription = async (req: any, res: any) => {
         if (authError || !authUser) return res.status(401).json({ error: 'Unauthorized: Invalid session' });
 
         // 2. Parse request body
-        const { subscriptionId, targetPricingId, paymentProofUrl, paymentReference } = req.body;
+        const { subscriptionId, targetPricingId, paymentProofUrl, paymentReference, paymentMethod } = req.body;
         if (!subscriptionId || !targetPricingId) {
             return res.status(400).json({ error: 'subscriptionId and targetPricingId are required' });
         }
@@ -39,9 +47,9 @@ export const upgradeSubscription = async (req: any, res: any) => {
                 id,
                 user_id,
                 plan_id,
+                pricing_id,
                 status,
                 current_period_end,
-                upgrade_in_progress,
                 pricing:plan_pricing!pricing_id(id, price_in_cents, billing_cycle)
             `)
             .eq('id', subscriptionId)
@@ -50,12 +58,26 @@ export const upgradeSubscription = async (req: any, res: any) => {
         if (subError || !sub) return res.status(404).json({ error: 'Subscription not found' });
         if (sub.user_id !== authUser.id) return res.status(403).json({ error: 'Forbidden: You do not own this subscription' });
         if (sub.status !== 'active') return res.status(400).json({ error: `Cannot upgrade a subscription with status: ${sub.status}` });
-        if (sub.upgrade_in_progress) return res.status(409).json({ error: 'An upgrade is already in progress for this subscription' });
 
         const currentPricing = Array.isArray(sub.pricing) ? sub.pricing[0] : sub.pricing;
         if (!currentPricing) return res.status(500).json({ error: 'Current subscription pricing data is missing' });
 
-        // 4. Fetch target pricing
+        // 4. Check for an existing pending upgrade request (duplicate prevention)
+        const { data: existingRequest } = await supabaseAdmin
+            .from('subscription_upgrade_requests')
+            .select('id, status')
+            .eq('subscription_id', subscriptionId)
+            .eq('status', 'pending')
+            .maybeSingle();
+
+        if (existingRequest) {
+            return res.status(409).json({ 
+                error: 'An upgrade request is already pending for this subscription. Please wait for admin review.',
+                requestId: existingRequest.id
+            });
+        }
+
+        // 5. Fetch target pricing
         const { data: targetPricing, error: targetError } = await supabaseAdmin
             .from('plan_pricing')
             .select('id, plan_id, price_in_cents, billing_cycle, is_active')
@@ -64,143 +86,92 @@ export const upgradeSubscription = async (req: any, res: any) => {
 
         if (targetError || !targetPricing) return res.status(404).json({ error: 'Target pricing not found' });
         if (!targetPricing.is_active) return res.status(400).json({ error: 'Target pricing plan is no longer active' });
-        if (targetPricing.plan_id !== sub.plan_id) return res.status(400).json({ error: 'Cannot upgrade to a pricing tier of a different membership plan' });
         if (targetPricing.id === currentPricing.id) return res.status(400).json({ error: 'Already subscribed to this exact pricing tier' });
 
-        // 5. Proration Math (Server-Side Only - Identical to preview controller)
+        // 6. Run proration math server-side (snapshot for display — will be recalculated at approval)
         const now = new Date();
         const periodEnd = new Date(sub.current_period_end);
-        
+
         if (periodEnd <= now) {
-             return res.status(400).json({ error: 'Subscription has expired' });
+            return res.status(400).json({ error: 'Subscription has already expired' });
         }
 
         const remainingMs = periodEnd.getTime() - now.getTime();
         const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
         const currentCycleDays = getBillingCycleDays(currentPricing.billing_cycle);
-        const dailyValueCents = currentPricing.price_in_cents / currentCycleDays;
-        const creditCents = Math.floor(remainingDays * dailyValueCents);
-        
         const targetCycleDays = getBillingCycleDays(targetPricing.billing_cycle);
-        const targetPriceCents = targetPricing.price_in_cents;
-        
-        let amountDueCents = targetPriceCents - creditCents;
-        let bonusDays = 0;
 
-        if (amountDueCents < 0) {
-            const extraCredit = Math.abs(amountDueCents);
-            const newPlanDailyValue = targetPriceCents / targetCycleDays;
-            if (newPlanDailyValue > 0) {
-                bonusDays = Math.floor(extraCredit / newPlanDailyValue);
-            }
-            amountDueCents = 0;
+        const { remainingValueCents: creditCents, amountDueCents, bonusDays } = calculateProratedUpgrade(
+            remainingDays,
+            currentPricing.price_in_cents,
+            currentCycleDays,
+            targetPricing.price_in_cents,
+            targetCycleDays
+        );
+
+        const snapshotNewPeriodEnd = new Date(now);
+        snapshotNewPeriodEnd.setDate(now.getDate() + targetCycleDays + bonusDays);
+
+        // 7. Validate: payment proof required if amount is due
+        if (amountDueCents > 0 && !paymentReference && !paymentProofUrl) {
+            return res.status(400).json({ error: 'Payment proof or reference is required when an amount is due' });
         }
 
-        // Validate payment info if amount is due
-        if (amountDueCents > 0 && !paymentProofUrl && !paymentReference) {
-             return res.status(400).json({ error: 'Payment proof or reference is required for upgrades requiring payment' });
-        }
-
-        const newPeriodEnd = new Date(now);
-        newPeriodEnd.setDate(now.getDate() + targetCycleDays + bonusDays);
-
-        // 6. Lock the subscription (Idempotency)
-        const { error: lockError } = await supabaseAdmin
-            .from('creator_subscriptions')
-            .update({ upgrade_in_progress: true })
-            .eq('id', subscriptionId)
-            .eq('upgrade_in_progress', false); // Atomic check-and-set
-
-        if (lockError) {
-             return res.status(409).json({ error: 'Failed to acquire upgrade lock. Another process may be updating this subscription.' });
-        }
-
-        try {
-            // 7. Apply the upgrade (Atomic Update)
-            const { error: updateError } = await supabaseAdmin
-                .from('creator_subscriptions')
-                .update({ 
-                    pricing_id: targetPricingId,
-                    current_period_end: newPeriodEnd.toISOString(),
-                    upgrade_in_progress: false, // Release lock
-                    updated_at: now.toISOString()
-                })
-                .eq('id', subscriptionId);
-
-            if (updateError) throw updateError;
-
-            // 8. Audit Log
-            await supabaseAdmin.from('subscription_upgrade_log').insert({
+        // 8. Create the upgrade request record (subscription untouched)
+        const { data: newRequest, error: insertError } = await supabaseAdmin
+            .from('subscription_upgrade_requests')
+            .insert({
                 subscription_id: subscriptionId,
                 user_id: authUser.id,
-                event_type: 'upgrade',
-                old_pricing_id: currentPricing.id,
-                new_pricing_id: targetPricingId,
-                old_billing_cycle: currentPricing.billing_cycle,
-                new_billing_cycle: targetPricing.billing_cycle,
-                old_period_end: sub.current_period_end,
-                new_period_end: newPeriodEnd.toISOString(),
-                remaining_days: remainingDays,
-                daily_value_cents: Math.round(dailyValueCents),
-                credit_cents: creditCents,
-                new_price_cents: targetPriceCents,
-                amount_due_cents: amountDueCents,
+                status: 'pending',
+                current_pricing_id: currentPricing.id,
+                target_pricing_id: targetPricingId,
+                current_billing_cycle: currentPricing.billing_cycle,
+                target_billing_cycle: targetPricing.billing_cycle,
+                snapshot_remaining_days: remainingDays,
+                snapshot_credit_cents: creditCents,
+                snapshot_amount_due_cents: amountDueCents,
+                snapshot_new_period_end: snapshotNewPeriodEnd.toISOString(),
+                snapshot_bonus_days: bonusDays,
+                payment_method: paymentMethod || null,
                 payment_reference: paymentReference || null,
-                payment_proof_url: paymentProofUrl || null
-            });
+                payment_proof_url: paymentProofUrl || null,
+            })
+            .select('id')
+            .single();
 
-            // 9. Re-provision Entitlements
-            // Note: Since subscription ID hasn't changed, this updates the existing entitlements
-            // to reflect the new billing cycle limits.
-            const { error: rpcError } = await supabaseAdmin.rpc('provision_entitlements', { p_subscription_id: subscriptionId });
-            if (rpcError) console.error('Failed to reprovision entitlements after upgrade:', rpcError);
-
-            // 10. Notify User
-            await supabaseAdmin.from('notifications').insert({
-                user_id: authUser.id,
-                type: 'subscription_upgraded',
-                title: 'Subscription Upgraded! 🚀',
-                content: `Your subscription has been successfully upgraded to the ${targetPricing.billing_cycle} cycle.`,
-                priority: 'high',
-            });
-
-            // 11. Create Earnings (If payment was made)
-            if (amountDueCents > 0) {
-                 const { data: planData } = await supabaseAdmin.from('membership_plans').select('club_id').eq('id', targetPricing.plan_id).single();
-                 if (planData?.club_id) {
-                     const { data: clubData } = await supabaseAdmin.from('membership_clubs').select('store_id').eq('id', planData.club_id).single();
-                     if (clubData?.store_id) {
-                          // The platform fee is 20% of the UPGRADE AMOUNT, not the full new price
-                          const platformFee = Math.round(amountDueCents * 0.20);
-                          const earning = amountDueCents - platformFee;
-                          
-                          // Convert cents to currency unit (e.g. EGP/USD) for earnings table
-                          const earningAmount = earning / 100;
-
-                          await supabaseAdmin.from('earnings').insert({
-                              creator_id: clubData.store_id,
-                              amount: earningAmount,
-                              status: 'pending',
-                              // Note: we don't have an order_id here since upgrades don't create orders currently
-                          });
-                     }
-                 }
+        if (insertError || !newRequest) {
+            // Handle unique constraint violation (race condition fallback)
+            if (insertError?.code === '23505') {
+                return res.status(409).json({ error: 'An upgrade request is already pending for this subscription.' });
             }
-
-            return res.status(200).json({ 
-                success: true, 
-                message: 'Subscription successfully upgraded.',
-                newPeriodEnd: newPeriodEnd.toISOString()
-            });
-
-        } catch (innerError: any) {
-             // Attempt to release lock on failure
-             await supabaseAdmin.from('creator_subscriptions').update({ upgrade_in_progress: false }).eq('id', subscriptionId);
-             throw innerError;
+            throw insertError;
         }
 
+        // 9. Notify the user their request is under review
+        await supabaseAdmin.from('notifications').insert({
+            user_id: authUser.id,
+            type: 'upgrade_request_submitted',
+            title: 'طلب الترقية قيد المراجعة ⏳',
+            content: `تم استلام طلب ترقية اشتراكك من ${currentPricing.billing_cycle} إلى ${targetPricing.billing_cycle}. سيتم مراجعته من قبل الإدارة قريباً.`,
+            priority: 'medium',
+        });
+
+        return res.status(201).json({
+            success: true,
+            status: 'pending',
+            requestId: newRequest.id,
+            message: 'Upgrade request submitted successfully. It is now under admin review.',
+            snapshot: {
+                creditCents,
+                amountDueCents,
+                bonusDays,
+                snapshotNewPeriodEnd: snapshotNewPeriodEnd.toISOString()
+            }
+        });
+
     } catch (error: any) {
-        console.error('upgrade-subscription error:', error);
+        console.error('submit-upgrade-request error:', error);
         return res.status(500).json({ error: error.message });
     }
 };

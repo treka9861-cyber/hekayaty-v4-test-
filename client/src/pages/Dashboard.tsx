@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Edit2, Package, DollarSign, Eye, BarChart, Settings, Palette, Image as ImageIcon, BookOpen, Wallet, TrendingUp, History, ArrowUpRight, ShoppingBag, Download, Loader2, Truck, PenTool, ChevronLeft, UserCog, CheckCircle2, Layout, MessageSquare, Megaphone, Send, Pin, MessageCircle, Music, Headphones, Twitter, Instagram, Globe, Crown, Users, Sparkles, Activity, ChevronRight, Unlock } from "lucide-react";
+import { Plus, Trash2, Edit2, Package, DollarSign, Eye, BarChart, Settings, Palette, Image as ImageIcon, BookOpen, Wallet, TrendingUp, History, ArrowUpRight, ShoppingBag, Download, Loader2, Truck, PenTool, ChevronLeft, UserCog, CheckCircle2, Layout, MessageSquare, Megaphone, Send, Pin, MessageCircle, Music, Headphones, Twitter, Instagram, Globe, Crown, Users, Sparkles, Activity, ChevronRight, Unlock, Clock } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +21,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link, useLocation } from "wouter";
 import { useEarnings, usePayouts, useRequestPayout } from "@/hooks/use-earnings";
 import { formatDate, cn, optimizeImage } from "@/lib/utils";
-import { useUserOrders, useUserSubscriptions } from "@/hooks/use-orders";
+import { useUserOrders, useUserSubscriptions, useUserUpgradeRequests } from "@/hooks/use-orders";
 import { useLibraryItems } from "@/hooks/use-library";
 import { useMakerOrders } from "@/hooks/use-physical-orders";
 import { useAdminPrivateMessages, useSendAdminPrivateMessage, useMarkMessageRead, useAdminAnnouncements } from "@/hooks/use-admin-system";
@@ -1509,6 +1509,7 @@ function ReaderLibraryContent({ user }: { user: any }) {
   const { t } = useTranslation();
   const { data: orders, isLoading: ordersLoading } = useUserOrders();
   const { data: subscriptions, isLoading: subsLoading } = useUserSubscriptions();
+  const { data: upgradeRequests } = useUserUpgradeRequests();
   const { data: explicitLibrary, isLoading: explicitLibraryLoading } = useLibraryItems();
 
   const [upgradeSubscription, setUpgradeSubscription] = useState<any>(null);
@@ -1727,7 +1728,9 @@ function ReaderLibraryContent({ user }: { user: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {subscriptions.map((sub: any) => (
+                    {subscriptions.map((sub: any) => {
+                      const pendingUpgrade = upgradeRequests?.find((req: any) => req.subscription_id === sub.id && req.status === 'pending');
+                      return (
                       <TableRow key={sub.id} className="hover:bg-primary/5 transition-colors group">
                         <TableCell>
                           <div className="flex flex-col gap-1.5 py-1">
@@ -1740,13 +1743,53 @@ function ReaderLibraryContent({ user }: { user: any }) {
                                   {sub.pricing.billing_cycle}
                                 </Badge>
                               )}
-                              <div className="flex items-center gap-1.5 text-[11px] font-medium bg-background/50 px-2 py-0.5 rounded border border-border/50" dir="ltr">
-                                <History className="w-3 h-3 text-primary/70" />
-                                <span className="text-muted-foreground">{sub.created_at ? formatDate(sub.created_at) : 'N/A'}</span>
-                                <span className="text-muted-foreground/40 text-[10px]">→</span>
-                                <span className="text-foreground">{sub.current_period_end ? formatDate(sub.current_period_end) : 'N/A'}</span>
-                              </div>
                             </div>
+                            <div className="flex flex-col gap-2 mt-2">
+                                <div className="flex items-center gap-4 text-xs bg-background/30 p-2 rounded-lg border border-white/5 w-fit">
+                                    <div className="flex flex-col">
+                                        <span className="text-muted-foreground text-[9px] uppercase tracking-wider mb-0.5">تاريخ البدء</span>
+                                        <span className="font-medium flex items-center gap-1.5 text-foreground"><CheckCircle2 className="w-3.5 h-3.5 text-green-500/70"/> {sub.created_at ? formatDate(sub.created_at) : 'N/A'}</span>
+                                    </div>
+                                    <div className="w-px h-8 bg-border/50" />
+                                    <div className="flex flex-col">
+                                        <span className="text-muted-foreground text-[9px] uppercase tracking-wider mb-0.5">تاريخ الانتهاء</span>
+                                        <span className="font-medium flex items-center gap-1.5 text-foreground"><History className="w-3.5 h-3.5 text-primary/70"/> {sub.current_period_end ? formatDate(sub.current_period_end) : 'N/A'}</span>
+                                    </div>
+                                    {sub.current_period_end && (
+                                        <>
+                                            <div className="w-px h-8 bg-border/50" />
+                                            <div className="flex flex-col justify-center">
+                                                {(() => {
+                                                    const end = new Date(sub.current_period_end);
+                                                    const now = new Date();
+                                                    const diffTime = end.getTime() - now.getTime();
+                                                    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                    
+                                                    if (daysRemaining < 0) {
+                                                        return <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-2 py-1 rounded-md">انتهى الاشتراك</span>;
+                                                    }
+                                                    
+                                                    const colorClass = daysRemaining <= 3 ? 'text-destructive bg-destructive/10 border-destructive/20' : 
+                                                                     daysRemaining <= 7 ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 
+                                                                     'text-green-500 bg-green-500/10 border-green-500/20';
+                                                    
+                                                    return (
+                                                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${colorClass}`}>
+                                                            يتبقى {daysRemaining} يوم
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                            {pendingUpgrade && (
+                                <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500 bg-amber-500/10 w-fit px-2 py-0.5 rounded border border-amber-500/20">
+                                    <Clock className="w-3 h-3" />
+                                    <span>طلب ترقية قيد المراجعة (إلى {pendingUpgrade.target_billing_cycle})</span>
+                                </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm text-muted-foreground align-top pt-5">
@@ -1765,14 +1808,16 @@ function ReaderLibraryContent({ user }: { user: any }) {
                         <TableCell className="text-right align-top pt-4">
                           {sub.status === 'active' ? (
                             <div className="flex items-center gap-2 justify-end">
-                                <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    className="border-amber-500/20 text-amber-500 hover:bg-amber-500/10 font-bold rounded-full gap-2"
-                                    onClick={() => handleUpgradeClick(sub)}
-                                >
-                                    <Crown className="w-4 h-4" /> Upgrade Plan
-                                </Button>
+                                <Link href={`/writer/${sub.creator_username}?tab=memberships`}>
+                                    <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        className={`font-bold rounded-full gap-2 ${pendingUpgrade ? 'opacity-50 cursor-not-allowed' : 'border-amber-500/20 text-amber-500 hover:bg-amber-500/10'}`}
+                                        disabled={!!pendingUpgrade}
+                                    >
+                                        <Crown className="w-4 h-4" /> {pendingUpgrade ? 'طلب ترقية قيد الانتظار' : 'إدارة / ترقية بالمتجر'}
+                                    </Button>
+                                </Link>
                                 <Link href={`/writer/${sub.creator_username}`}>
                                   <Button size="sm" className="bg-primary hover:bg-primary/90 gap-2 font-bold rounded-full">
                                     <Unlock className="w-4 h-4" /> فتح المكتبة
@@ -1786,7 +1831,7 @@ function ReaderLibraryContent({ user }: { user: any }) {
                           )}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )})}
                   </TableBody>
                 </Table>
               </div>

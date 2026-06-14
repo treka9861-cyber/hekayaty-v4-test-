@@ -28,6 +28,10 @@ import rejectSubscriptionRoutes from './reject-subscription.routes';
 import getUserSubscriptionsRoutes from './get-user-subscriptions.routes';
 import upgradeSubscriptionPreviewRoutes from './upgrade-subscription-preview.routes';
 import upgradeSubscriptionRoutes from './upgrade-subscription.routes';
+import approveUpgradeRequestRoutes from './approve-upgrade-request.routes';
+import rejectUpgradeRequestRoutes from './reject-upgrade-request.routes';
+import getUpgradeRequestsRoutes from './get-upgrade-requests.routes';
+import getUserUpgradeRequestsRoutes from './get-user-upgrade-requests.routes';
 
 const router = Router();
 
@@ -60,5 +64,9 @@ router.use('/reject-subscription', rejectSubscriptionRoutes);
 router.use('/get-user-subscriptions', getUserSubscriptionsRoutes);
 router.use('/upgrade-subscription-preview', upgradeSubscriptionPreviewRoutes);
 router.use('/upgrade-subscription', upgradeSubscriptionRoutes);
+router.use('/approve-upgrade-request', approveUpgradeRequestRoutes);
+router.use('/reject-upgrade-request', rejectUpgradeRequestRoutes);
+router.use('/get-upgrade-requests', getUpgradeRequestsRoutes);
+router.use('/get-user-upgrade-requests', getUserUpgradeRequestsRoutes);
 
 export default router;

@@ -215,6 +215,61 @@ export function useRejectSubscription() {
 }
 
 // ==========================================
+// UPGRADE REQUESTS
+// ==========================================
+
+export function useUpgradeRequests(status?: string) {
+    return useQuery({
+        queryKey: ['admin-upgrade-requests', status || 'all'],
+        queryFn: async () => {
+            return callEdgeFunction('get-upgrade-requests', { status: status || 'all' });
+        },
+        initialData: [],
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: false
+    });
+}
+
+export function useApproveUpgradeRequest() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async (requestId: number) => {
+            return callEdgeFunction('approve-upgrade-request', { requestId });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-upgrade-requests'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-pending-subscriptions'] }); // Just in case
+            toast({ title: "Upgrade Approved", description: "The subscription has been successfully upgraded." });
+        },
+        onError: (error: Error) => {
+            toast({ title: "Failed to approve upgrade", description: error.message, variant: "destructive" });
+        }
+    });
+}
+
+export function useRejectUpgradeRequest() {
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+
+    return useMutation({
+        mutationFn: async ({ requestId, reason }: { requestId: number, reason?: string }) => {
+            return callEdgeFunction('reject-upgrade-request', { requestId, reason });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-upgrade-requests'] });
+            toast({ title: "Upgrade Rejected", description: "The request was rejected and the user notified." });
+        },
+        onError: (error: Error) => {
+            toast({ title: "Failed to reject upgrade", description: error.message, variant: "destructive" });
+        }
+    });
+}
+
+// ==========================================
 // PHASE 1 — NEW ADMIN CORE HOOKS
 // ==========================================
 

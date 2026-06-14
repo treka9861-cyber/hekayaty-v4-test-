@@ -9,10 +9,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useTranslation } from "react-i18next";
+import { useUserSubscriptions } from "@/hooks/use-orders";
+import { SubscriptionUpgradeModal } from "@/components/memberships/SubscriptionUpgradeModal";
 
 export function StoreMemberships({ user, themeColor, hideHeader = false }: { user: any, themeColor: string, hideHeader?: boolean }) {
   const [billingCycle, setBillingCycle] = useState<string>("monthly");
   const [checkoutPlan, setCheckoutPlan] = useState<{ planId: number, pricingId: number, amount: number, name: string } | null>(null);
+  const [upgradeSubscription, setUpgradeSubscription] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState("instapay");
   const [reference, setReference] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,7 +31,22 @@ export function StoreMemberships({ user, themeColor, hideHeader = false }: { use
     enabled: !!user.id
   });
 
+  const { data: userSubscriptions } = useUserSubscriptions();
+
   const handleSubscribeClick = (plan: any, pricing: any) => {
+    // Check if user already has an active subscription to this creator
+    const existingSub = userSubscriptions?.find((sub: any) => 
+        sub.creator_id === user.id && sub.status === 'active'
+    );
+
+    if (existingSub) {
+        // Even if they clicked a new plan, we open the Upgrade Modal with their existing subscription
+        // The modal will allow them to choose target pricing.
+        // We set the initial target to the one they clicked in the store.
+        setUpgradeSubscription({ ...existingSub, _targetPricingId: pricing.id });
+        return;
+    }
+
     setCheckoutPlan({ 
         planId: plan.id, 
         pricingId: pricing.id, 
@@ -211,6 +229,16 @@ export function StoreMemberships({ user, themeColor, hideHeader = false }: { use
           );
         })}
       </div>
+
+      {/* UPGRADE DIALOG */}
+      {upgradeSubscription && (
+        <SubscriptionUpgradeModal
+            subscription={upgradeSubscription}
+            plans={plans}
+            isOpen={!!upgradeSubscription}
+            onClose={() => setUpgradeSubscription(null)}
+        />
+      )}
 
       {/* CHECKOUT DIALOG */}
       <Dialog open={!!checkoutPlan} onOpenChange={(open) => !open && setCheckoutPlan(null)}>
