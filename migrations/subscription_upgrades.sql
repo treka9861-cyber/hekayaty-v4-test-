@@ -63,6 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_sub_upgrade_log_created_at
 ALTER TABLE subscription_upgrade_log ENABLE ROW LEVEL SECURITY;
 
 -- Users can read their own upgrade history
+DROP POLICY IF EXISTS "Users can view their own upgrade history" ON subscription_upgrade_log;
 CREATE POLICY "Users can view their own upgrade history"
   ON subscription_upgrade_log FOR SELECT
   USING (user_id = auth.uid()::TEXT);

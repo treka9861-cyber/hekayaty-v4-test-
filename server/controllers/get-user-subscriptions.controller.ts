@@ -16,7 +16,10 @@ export const getUserSubscriptions = async (req: any, res: any) => {
 
         const { data, error } = await supabaseAdmin
             .from('creator_subscriptions')
-            .select('id, plan_id, pricing_id, status, current_period_end, created_at')
+            .select(`
+                id, plan_id, pricing_id, status, current_period_end, created_at,
+                pricing:plan_pricing!pricing_id(billing_cycle, price_in_cents)
+            `)
             .eq('user_id', authUser.id)
             .in('status', ['active', 'pending', 'past_due'])
             .order('created_at', { ascending: false });

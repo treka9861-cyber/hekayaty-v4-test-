@@ -1733,13 +1733,28 @@ function ReaderLibraryContent({ user }: { user: any }) {
                   <TableBody>
                     {subscriptions.map((sub: any) => (
                       <TableRow key={sub.id} className="hover:bg-primary/5 transition-colors group">
-                        <TableCell className="font-bold text-base group-hover:text-primary transition-colors">
-                          {sub.plan?.name || "Membership"}
+                        <TableCell>
+                          <div className="flex flex-col gap-1.5">
+                            <span className="font-bold text-base group-hover:text-primary transition-colors">
+                              {sub.plan?.name || "Membership"}
+                            </span>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] font-normal text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <History className="w-3 h-3" />
+                                {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : ''} - {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : ''}
+                              </span>
+                              {sub.pricing?.billing_cycle && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-widest text-[9px]">
+                                  {sub.pricing.billing_cycle}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm text-muted-foreground">
+                        <TableCell className="font-mono text-sm text-muted-foreground align-top pt-5">
                           بواسطة {sub.creator_name || 'حكاياتي'}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top pt-5">
                           <Badge variant={sub.status === 'active' ? 'default' : 'outline'} className={
                             sub.status === 'active' ? "bg-green-500/10 text-green-500 border-green-500/20 uppercase tracking-widest text-[10px]" :
                             sub.status === 'pending' ? "bg-amber-500/10 text-amber-500 border-amber-500/20 uppercase tracking-widest text-[10px]" :
@@ -1749,7 +1764,7 @@ function ReaderLibraryContent({ user }: { user: any }) {
                             {sub.status === 'active' ? '✓ نشط' : sub.status?.toUpperCase()}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right align-top pt-4">
                           {sub.status === 'active' ? (
                             <div className="flex items-center gap-2 justify-end">
                                 <Button 
