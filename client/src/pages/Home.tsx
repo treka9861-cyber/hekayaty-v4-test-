@@ -164,11 +164,6 @@ function BookSlider({ books }: BookSliderProps) {
                         جديد ✦
                       </div>
                     )}
-                    {!isNew && (
-                      <div className="absolute top-5 right-5 z-20 px-3 py-1 rounded-lg bg-[#F5C000] text-black text-[10px] font-black uppercase tracking-tight">
-                        حكايتي
-                      </div>
-                    )}
                     <button className="absolute top-5 left-5 z-20 w-9 h-9 rounded-full bg-[#F5C000] flex items-center justify-center shadow-lg">
                       <Feather className="w-4 h-4 text-black fill-black" />
                     </button>
