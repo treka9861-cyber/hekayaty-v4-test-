@@ -145,6 +145,10 @@ export const previewSubscriptionUpgrade = async (req: any, res: any) => {
         // Value of current plan per day
         const dailyValueCents = currentPricing.price_in_cents / currentCycleDays;
         
+        // Target plan details
+        const targetCycleDays = getBillingCycleDays(targetPricing.billing_cycle);
+        const targetPriceCents = targetPricing.price_in_cents;
+        
         const { remainingValueCents: creditCents, amountDueCents, bonusDays } = calculateProratedUpgrade(
             remainingDays,
             currentPricing.price_in_cents,
