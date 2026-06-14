@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 export async function callEdgeFunction(
     functionName: string,
@@ -97,21 +98,25 @@ export function useRequestPayoutEdge() {
 
 // Earnings Overview
 export function useEarningsOverviewEdge() {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['earnings-overview'],
         queryFn: async () => {
             return callEdgeFunction('earnings-overview', undefined, 'GET');
         },
+        enabled: !!user,
     });
 }
 
 // Seller Orders
 export function useSellerOrdersEdge() {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['seller-orders'],
         queryFn: async () => {
             return callEdgeFunction('seller-orders', undefined, 'GET');
         },
+        enabled: !!user,
     });
 }
 

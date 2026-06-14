@@ -43,13 +43,17 @@ export function useEarnings(user: any) {
     };
 }
 
+import { useAuth } from "@/hooks/use-auth";
+
 // Get seller orders using Edge Function
 export function useSellerOrders() {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['seller-orders'],
         queryFn: async () => {
             return callEdgeFunction('seller-orders');
         },
+        enabled: !!user,
     });
 }
 

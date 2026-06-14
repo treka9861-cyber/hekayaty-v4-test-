@@ -29,14 +29,18 @@ async function callEdgeFunction(
     }
 }
 
+import { useAuth } from "@/hooks/use-auth";
+
 // Fetch maker's physical product orders
 export function useMakerOrders(status?: string) {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['maker-orders', status],
         queryFn: async () => {
             const data = await callEdgeFunction('get-maker-orders', { status });
             return data.orders || [];
         },
+        enabled: !!user && (user.role === 'writer' || user.role === 'artist'),
         staleTime: 0,
         gcTime: 0,
         refetchOnMount: 'always'
@@ -157,12 +161,14 @@ export interface MakerOrder {
 
 // Fetch user's physical product orders
 export function useUserOrders() {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['user-orders'],
         queryFn: async () => {
             const data = await callEdgeFunction('get-user-orders', {});
             return data.orders || [];
         },
+        enabled: !!user,
         staleTime: 0,
         gcTime: 0,
         refetchOnMount: 'always'
@@ -171,12 +177,14 @@ export function useUserOrders() {
 
 // Fetch order notifications
 export function useOrderNotifications(onlyUnread: boolean = false) {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['order-notifications', onlyUnread],
         queryFn: async () => {
             const data = await callEdgeFunction('get-order-notifications', { onlyUnread });
             return data.notifications || [];
         },
+        enabled: !!user,
         staleTime: 30000, // Refetch every 30 seconds
         refetchInterval: 30000
     });
