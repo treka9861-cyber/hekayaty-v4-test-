@@ -26,7 +26,7 @@ export const getUserSubscriptions = async (req: any, res: any) => {
 
         if (error) throw error;
 
-        // Manually fetch plans for these subscriptions
+        // Manually fetch plans with ALL their pricing options (needed for upgrade modal)
         const planIds = [...new Set((data || []).map((s: any) => s.plan_id).filter(Boolean))];
         let plans: any[] = [];
         if (planIds.length > 0) {
@@ -35,6 +35,23 @@ export const getUserSubscriptions = async (req: any, res: any) => {
                 .select('id, name, club_id')
                 .in('id', planIds);
             plans = p || [];
+        }
+
+        // Fetch ALL active pricings for these plans so the upgrade modal can show options
+        let allPricings: any[] = [];
+        if (planIds.length > 0) {
+            const { data: pr } = await supabaseAdmin
+                .from('plan_pricing')
+                .select('id, plan_id, billing_cycle, price_in_cents, is_active')
+                .in('plan_id', planIds)
+                .eq('is_active', true);
+            allPricings = pr || [];
+        }
+        // Group pricings by plan_id
+        const pricingsByPlan = new Map<number, any[]>();
+        for (const pr of allPricings) {
+            if (!pricingsByPlan.has(pr.plan_id)) pricingsByPlan.set(pr.plan_id, []);
+            pricingsByPlan.get(pr.plan_id)!.push(pr);
         }
 
         const planMap = new Map(plans.map((p: any) => [p.id, p]));
@@ -102,10 +119,16 @@ export const getUserSubscriptions = async (req: any, res: any) => {
             const plan = planMap.get(sub.plan_id);
             const club = clubMap.get(plan?.club_id);
             const storeUser = storeMap.get(club?.store_id) || {};
+            // Attach all pricings to the plan so the upgrade modal has access
+            const planWithPricings = plan ? {
+                ...plan,
+                pricing: pricingsByPlan.get(plan.id) || []
+            } : null;
             return {
                 ...sub,
-                plan,
+                plan: planWithPricings,
                 club,
+                creator_id: storeUser.id || null,
                 creator_name: storeUser.display_name || 'Hekayaty',
                 creator_username: storeUser.username || ''
             };

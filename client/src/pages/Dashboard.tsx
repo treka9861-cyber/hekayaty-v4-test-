@@ -1514,16 +1514,12 @@ function ReaderLibraryContent({ user }: { user: any }) {
   const [upgradeSubscription, setUpgradeSubscription] = useState<any>(null);
   const [plansForUpgrade, setPlansForUpgrade] = useState<any[]>([]);
 
-  // Function to load plans and open upgrade modal
-  const handleUpgradeClick = async (subscription: any) => {
-    try {
-        const res = await fetch(`/api/memberships/plans?storeId=${subscription.creator_id}`);
-        const data = await res.json();
-        setPlansForUpgrade(data);
-        setUpgradeSubscription(subscription);
-    } catch (err) {
-        console.error("Failed to load plans for upgrade", err);
-    }
+  // Function to open upgrade modal — plan.pricing is already embedded in the subscription
+  const handleUpgradeClick = (subscription: any) => {
+    // The subscription already has plan.pricing[] from get-user-subscriptions controller
+    // No extra API call needed — just open the modal
+    setPlansForUpgrade(subscription.plan ? [subscription.plan] : []);
+    setUpgradeSubscription(subscription);
   };
 
   const isLoading = ordersLoading || subsLoading || explicitLibraryLoading;
@@ -1734,20 +1730,22 @@ function ReaderLibraryContent({ user }: { user: any }) {
                     {subscriptions.map((sub: any) => (
                       <TableRow key={sub.id} className="hover:bg-primary/5 transition-colors group">
                         <TableCell>
-                          <div className="flex flex-col gap-1.5">
-                            <span className="font-bold text-base group-hover:text-primary transition-colors">
+                          <div className="flex flex-col gap-1.5 py-1">
+                            <span className="font-bold text-base text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
                               {sub.plan?.name || "Membership"}
                             </span>
-                            <div className="flex flex-wrap items-center gap-2 text-[11px] font-normal text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <History className="w-3 h-3" />
-                                {sub.created_at ? new Date(sub.created_at).toLocaleDateString() : ''} - {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString() : ''}
-                              </span>
+                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
                               {sub.pricing?.billing_cycle && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-widest text-[9px]">
+                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 uppercase tracking-widest text-[9px] font-bold px-2 py-0.5">
                                   {sub.pricing.billing_cycle}
-                                </span>
+                                </Badge>
                               )}
+                              <div className="flex items-center gap-1.5 text-[11px] font-medium bg-background/50 px-2 py-0.5 rounded border border-border/50" dir="ltr">
+                                <History className="w-3 h-3 text-primary/70" />
+                                <span className="text-muted-foreground">{sub.created_at ? formatDate(sub.created_at) : 'N/A'}</span>
+                                <span className="text-muted-foreground/40 text-[10px]">→</span>
+                                <span className="text-foreground">{sub.current_period_end ? formatDate(sub.current_period_end) : 'N/A'}</span>
+                              </div>
                             </div>
                           </div>
                         </TableCell>
