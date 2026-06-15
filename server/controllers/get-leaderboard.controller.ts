@@ -16,6 +16,22 @@ export const getLeaderboard = async (req: any, res: any) => {
         const page = parseInt(req.query.page) || 1;
         const offset = (page - 1) * limit;
 
+        // Check if leaderboard is active globally
+        const { data: setting } = await supabase
+            .from('platform_settings')
+            .select('value')
+            .eq('key', 'is_leaderboard_active')
+            .single();
+
+        if (setting && setting.value === false) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                meta: { total: 0, page: 1, limit, totalPages: 0 },
+                isHiddenGlobally: true
+            });
+        }
+
         // Fetch leaderboard entries without join to avoid PostgREST foreign key errors
         const { data: leaderboardData, error: leaderboardError, count } = await supabase
             .from('account_leaderboard_cache')

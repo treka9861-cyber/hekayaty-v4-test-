@@ -103,6 +103,44 @@ export function LeaderboardAdmin() {
     },
   });
 
+  // Fetch global leaderboard active status
+  const { data: globalStatus } = useQuery({
+    queryKey: ["admin-leaderboard-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "is_leaderboard_active")
+        .maybeSingle();
+
+      if (error) throw error;
+      return data ? data.value : true; // default true
+    },
+  });
+
+  const isGloballyActive = globalStatus !== false;
+
+  const toggleGlobalStatus = useMutation({
+    mutationFn: async () => {
+      const newValue = !isGloballyActive;
+      const { error } = await supabase
+        .from("platform_settings")
+        .upsert({ key: "is_leaderboard_active", value: newValue });
+      if (error) throw error;
+      return newValue;
+    },
+    onSuccess: (newStatus) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-leaderboard-status"] });
+      toast({ 
+        title: "تم التحديث", 
+        description: newStatus ? "تم تفعيل عرض الترتيب للعامة." : "تم إيقاف عرض الترتيب للعامة." 
+      });
+    },
+    onError: (e: any) => {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    },
+  });
+
   return (
     <div className="space-y-6 mt-6">
       <Card className="glass-card border-primary/20 bg-black/60 shadow-2xl overflow-hidden">
@@ -113,7 +151,12 @@ export function LeaderboardAdmin() {
                 <Trophy className="w-6 h-6 text-[#c084fc]" />
               </div>
               <div>
-                <CardTitle className="text-2xl text-gradient">إدارة ترتيب أفضل الحسابات</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-2xl text-gradient">إدارة ترتيب أفضل الحسابات</CardTitle>
+                  {!isGloballyActive && (
+                    <Badge className="bg-red-500/10 text-red-400 border-red-500/20 text-xs">متوقف حالياً</Badge>
+                  )}
+                </div>
                 <CardDescription>
                   عرض التصنيف الحالي وإخفاء الحسابات أو تحديث الترتيب.
                   {lastUpdated && (
@@ -125,6 +168,19 @@ export function LeaderboardAdmin() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant={isGloballyActive ? "destructive" : "default"}
+                className={`gap-2 ${isGloballyActive ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30" : "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30"}`}
+                onClick={() => {
+                  if (confirm(isGloballyActive ? "هل أنت متأكد من إيقاف عرض الترتيب للعامة؟" : "هل أنت متأكد من إعادة تفعيل عرض الترتيب للعامة؟")) {
+                    toggleGlobalStatus.mutate();
+                  }
+                }}
+                disabled={toggleGlobalStatus.isPending}
+              >
+                {isGloballyActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {isGloballyActive ? "إيقاف الترتيب مؤقتاً" : "إعادة تفعيل الترتيب"}
+              </Button>
               <Button
                 variant="outline"
                 className="gap-2 border-[#7c3aed]/40 bg-[#7c3aed]/10 text-[#c084fc] hover:bg-[#7c3aed]/20"

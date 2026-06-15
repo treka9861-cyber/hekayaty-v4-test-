@@ -121,12 +121,20 @@ export default function LeaderboardPage() {
           {error && (
             <div className="text-center py-20">
               <Trophy className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-400 mb-2">لم يتم حساب الترتيب بعد</h3>
-              <p className="text-gray-600 text-sm">سيتم تحديث الترتيب قريباً. جرب مرة أخرى لاحقاً.</p>
+              <h3 className="text-xl font-bold text-gray-400 mb-2">حدث خطأ</h3>
+              <p className="text-gray-600 text-sm">تعذر جلب الترتيب. يرجى المحاولة لاحقاً.</p>
             </div>
           )}
 
-          {!isLoading && !error && entries.length === 0 && (
+          {!isLoading && !error && (data as any)?.isHiddenGlobally && (
+            <div className="text-center py-20">
+              <Crown className="w-16 h-16 text-gray-700 mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-bold text-gray-400 mb-2">الترتيب متوقف حالياً</h3>
+              <p className="text-gray-600 text-sm">قامت الإدارة بإيقاف عرض الترتيب العالمي مؤقتاً.</p>
+            </div>
+          )}
+
+          {!isLoading && !error && !(data as any)?.isHiddenGlobally && entries.length === 0 && (
             <div className="text-center py-20">
               <Trophy className="w-16 h-16 text-gray-700 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-400 mb-2">الترتيب قيد التحديث</h3>
