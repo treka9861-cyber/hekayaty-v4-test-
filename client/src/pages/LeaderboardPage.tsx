@@ -46,8 +46,6 @@ function formatNumber(num: number): string {
 }
 
 export default function LeaderboardPage() {
-  const { callEdgeFunction } = useEdgeFunctions();
-
   const { data, isLoading, error } = useQuery({
     queryKey: ["leaderboard", "accounts"],
     queryFn: async () => {
