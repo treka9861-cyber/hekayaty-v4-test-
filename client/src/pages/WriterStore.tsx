@@ -32,7 +32,7 @@ export default function WriterStore() {
   const { user: currentUser } = useAuth();
   const { data: user, isLoading: userLoading } = useUser(username);
   const { data: productsData, isLoading: productsLoading } = useProducts({ writerId: user?.id });
-  const { data: authoredBooksData, isLoading: authoredLoading } = useAuthoredBooks(user?.id);
+  const { data: authoredBooksData, isLoading: authoredLoading } = useAuthoredBooks(user?.id ?? null);
   const trackView = useTrackStoreView();
 
   const isOwnStore = currentUser?.username === username;
