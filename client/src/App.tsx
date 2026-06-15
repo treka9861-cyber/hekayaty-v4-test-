@@ -38,6 +38,7 @@ const About = lazy(() => import("@/pages/About"));
 const Blog = lazy(() => import("@/pages/Blog"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const LeaderboardPage = lazy(() => import("@/pages/LeaderboardPage"));
 
 function Router() {
   return (
@@ -70,6 +71,7 @@ function Router() {
         <Route path="/about" component={About} />
         <Route path="/blog" component={Blog} />
         <Route path="/contact" component={Contact} />
+        <Route path="/leaderboards/accounts" component={LeaderboardPage} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

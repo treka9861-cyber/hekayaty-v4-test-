@@ -952,3 +952,18 @@ export const globalChatMessages = pgTable("global_chat_messages", {
 export type PlatformSetting = typeof platformSettings.$inferSelect;
 export type GlobalNotification = typeof globalNotifications.$inferSelect;
 export type GlobalChatMessage = typeof globalChatMessages.$inferSelect;
+
+// === PHASE 5: LEADERBOARDS ===
+export const accountLeaderboardCache = pgTable("account_leaderboard_cache", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // UUID ref to users
+  rank: integer("rank").notNull(),
+  followersCount: integer("followers_count").notNull().default(0),
+  booksCount: integer("books_count").notNull().default(0),
+  viewsCount: integer("views_count").notNull().default(0),
+  accountCreatedAt: timestamp("account_created_at"), // To resolve ties
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+  isHidden: boolean("is_hidden").default(false), // Admin override
+});
+
+export type AccountLeaderboardCache = typeof accountLeaderboardCache.$inferSelect;

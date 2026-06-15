@@ -21,6 +21,7 @@ import { OrdersAdmin as GlobalOrdersAdmin } from "./OrdersAdmin";
 import { MarketingAdmin } from "./MarketingAdmin";
 import { CommunityAdmin } from "./CommunityAdmin";
 import { SettingsAdmin } from "./SettingsAdmin";
+import { LeaderboardAdmin } from "./LeaderboardAdmin";
 import { formatDate, cn } from "@/lib/utils";
 import { useAdminPrivateMessages, useSendAdminPrivateMessage, useAdminAnnouncements, useCreateAdminAnnouncement, useDeleteAdminAnnouncement, useMarkMessageRead } from "@/hooks/use-admin-system";
 import { MessageSquare, Send, Megaphone, Trash2, Pin, Shield, Activity, Users as UsersIcon, Flag, BookMarked, DollarSign, Package, Settings, MessageCircle } from "lucide-react";
@@ -961,6 +962,9 @@ export default function AdminDashboard() {
                         <TabsTrigger value="history" className="gap-2">
                             <History className="w-4 h-4" /> السجل العام
                         </TabsTrigger>
+                        <TabsTrigger value="leaderboard" className="gap-2">
+                            <Crown className="w-4 h-4" /> الترتيب العالمي
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="overview">
@@ -1017,6 +1021,10 @@ export default function AdminDashboard() {
 
                     <TabsContent value="history">
                         <AdminHistory />
+                    </TabsContent>
+
+                    <TabsContent value="leaderboard">
+                        <LeaderboardAdmin />
                     </TabsContent>
 
                     <TabsContent value="orders">

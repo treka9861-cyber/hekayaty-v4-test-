@@ -10,7 +10,8 @@ import {
   Bell,
   MessageCircle,
   MapPin,
-  CheckCircle2
+  CheckCircle2,
+  Trophy
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +72,22 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
   const followersCount = realStats?.followers ?? 0;
   const productsCount = realStats?.books ?? 0;
   const reviewCount = realStats?.reviews ?? 0;
+
+  // Fetch global rank
+  const { data: rankData } = useQuery({
+    queryKey: ["user-leaderboard-rank", user.id],
+    queryFn: async () => {
+      const { data: rows } = await supabase
+        .from('account_leaderboard_cache')
+        .select('rank')
+        .eq('user_id', user.id)
+        .eq('is_hidden', false)
+        .maybeSingle();
+      return rows;
+    },
+    enabled: !!user.id,
+  });
+  const globalRank = rankData?.rank ?? null;
   const { data: isFollowing } = useQuery({
     queryKey: ["follow-status", user.id, currentUser?.id],
     queryFn: async () => {
@@ -178,6 +195,12 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
                 </span>
                 {isPublishingHouse ? 'ناشر موثق' : 'مؤلف الأكثر مبيعاً'}
               </span>
+              {globalRank !== null && (
+                <a href="/leaderboards/accounts" className="flex items-center gap-1 bg-[#7c3aed]/15 border border-[#7c3aed]/30 rounded-full px-2.5 py-0.5 hover:bg-[#7c3aed]/25 transition-colors">
+                  <Trophy className="w-3 h-3 text-[#c084fc]" />
+                  <span className="text-[#c084fc] text-[11px] font-bold">#{globalRank} عالمياً</span>
+                </a>
+              )}
             </div>
             
             <div className="flex items-center gap-2 mb-2">
