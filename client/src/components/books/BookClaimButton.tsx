@@ -191,7 +191,7 @@ export function BookClaimButton({ bookId, bookTitle, writerId }: BookClaimButton
   return (
     <>
       <button
-        onClick={() => setModalOpen(true)}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setModalOpen(true); }}
         className="group flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 hover:border-primary/40 hover:bg-primary/5 text-white/60 hover:text-primary text-sm font-bold transition-all duration-300"
       >
         <BookOpen className="w-4 h-4 group-hover:scale-110 transition-transform" />
