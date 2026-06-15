@@ -59,13 +59,13 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
       // Sum up all reviews
       const reviews = allPublishedBooks.reduce((sum, p: any) => sum + (p.review_count || 0), 0);
 
-      // Compute weighted average rating
-      // avgRating = sum(rating * review_count) / sum(review_count)
+      // Compute weighted average rating (product.rating is 0-50 scale)
+      // avgRating = (sum(rating * review_count) / sum(review_count)) / 10
       const totalWeightedRating = allPublishedBooks.reduce(
         (sum, p: any) => sum + (p.rating || 0) * (p.review_count || 0), 0
       );
       const totalReviews = reviews;
-      const avgRating = totalReviews > 0 ? totalWeightedRating / totalReviews : 0;
+      const avgRating = totalReviews > 0 ? (totalWeightedRating / totalReviews) / 10 : 0;
 
       return {
         followers: followers || 0,

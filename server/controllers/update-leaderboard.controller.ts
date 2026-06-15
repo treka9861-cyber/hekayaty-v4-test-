@@ -123,7 +123,7 @@ export const updateLeaderboard = async (req: any, res: any) => {
                         (sum: number, p: any) => sum + (p.review_count || 0),
                         0
                     );
-                    avgRating = totalReviews > 0 ? totalWeightedRating / totalReviews : 0;
+                    avgRating = totalReviews > 0 ? (totalWeightedRating / totalReviews) / 10 : 0;
                 }
 
                 return {
