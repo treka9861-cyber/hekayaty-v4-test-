@@ -145,6 +145,7 @@ export function ProductCard({ product, collection, variant = "default" }: Produc
             <div className="px-1.5 py-1 rounded-lg bg-[#000000]/50 backdrop-blur-xl text-[#FFB800] text-[10px] font-bold flex items-center gap-1 border border-white/5">
               <Star className="w-2.5 h-2.5 fill-[#FFB800] text-[#FFB800]" />
               <span>{product?.rating ? (product.rating / 10).toFixed(1) : "0.0"}</span>
+              <span className="text-white/60 text-[9px] mr-1">({product?.reviewCount || 0})</span>
             </div>
           </div>
 

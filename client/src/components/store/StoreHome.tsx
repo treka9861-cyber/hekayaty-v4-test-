@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useMediaVideos } from "@/hooks/use-media";
 import { StoreMemberships } from "./StoreMemberships";
 import { useTranslation } from "react-i18next";
+import { BookClaimButton } from "@/components/books/BookClaimButton";
 
 interface StoreHomeProps extends StoreProps {
   products: any[];
@@ -247,15 +248,20 @@ function ProductRow({ title, products, viewAllLink, onTabChange }: { title: stri
                 <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-300 mb-2">
                   <Star className="w-3 h-3 fill-[#cca660] text-[#cca660]" />
                   <span className="font-semibold text-white">{product.rating ? (product.rating / 10).toFixed(1) : "0.0"}</span>
+                  <span className="text-gray-500 text-[9px] mr-1">({product.reviewCount || 0})</span>
                 </div>
                 
-                <div className="mt-auto flex justify-between items-center text-xs">
+                <div className="mt-auto flex justify-between items-center text-xs mb-2">
                   <span className="text-gray-400 text-[9px] sm:text-[10px] tracking-wider uppercase">
                     {product.type}
                   </span>
                   <span className="font-bold text-[#cca660]">
                     {product.price === 0 ? 'مجانًا' : `${product.price} ج.م`}
                   </span>
+                </div>
+                
+                <div className="w-full flex justify-center">
+                  <BookClaimButton bookId={product.id} bookTitle={product.title} writerId={product.writerId || product.writer_id} />
                 </div>
               </div>
             </div>
