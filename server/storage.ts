@@ -32,6 +32,18 @@ if (supabaseUrl === 'https://dummy.supabase.co') {
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
+function toSnakeCase(obj: any): any {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const newObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      newObj[snakeKey] = obj[key];
+    }
+  }
+  return newObj;
+}
+
 export interface IStorage {
   sessionStore: session.Store;
   // User/Writer
@@ -166,16 +178,16 @@ export class SupabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const { data, error } = await supabaseAdmin.from('users').insert({
-      ...insertUser,
-      isActive: true,
-      createdAt: new Date()
+      ...toSnakeCase(insertUser),
+      is_active: true,
+      created_at: new Date()
     }).select().single();
     if (error) throw error;
     return data as User;
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
-    const { data, error } = await supabaseAdmin.from('users').update(updates).eq('id', id).select().single();
+    const { data, error } = await supabaseAdmin.from('users').update(toSnakeCase(updates)).eq('id', id).select().single();
     if (error) throw error;
     await serverCache.clear(); // Invalidate cache to refresh writers list
     return data as User;
@@ -213,8 +225,8 @@ export class SupabaseStorage implements IStorage {
 
   async createProduct(product: InsertProduct): Promise<Product> {
     const { data, error } = await supabaseAdmin.from('products').insert({
-      ...product,
-      createdAt: new Date()
+      ...toSnakeCase(product),
+      created_at: new Date()
     }).select().single();
     if (error) throw error;
     await serverCache.clear(); // Invalidate cache
@@ -222,7 +234,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product> {
-    const { data, error } = await supabaseAdmin.from('products').update(product).eq('id', id).select().single();
+    const { data, error } = await supabaseAdmin.from('products').update(toSnakeCase(product)).eq('id', id).select().single();
     if (error) throw error;
     await serverCache.clear(); // Invalidate cache
     return data as Product;
@@ -240,7 +252,7 @@ export class SupabaseStorage implements IStorage {
 
   // Variants
   async createVariant(variant: InsertVariant): Promise<Variant> {
-    const { data, error } = await supabaseAdmin.from('product_variants').insert(variant).select().single();
+    const { data, error } = await supabaseAdmin.from('product_variants').insert(toSnakeCase(variant)).select().single();
     if (error) throw error;
     return data as Variant;
   }
@@ -307,7 +319,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async addToCart(item: InsertCartItem): Promise<CartItem> {
-    const { data, error } = await supabaseAdmin.from('cart_items').insert(item).select().single();
+    const { data, error } = await supabaseAdmin.from('cart_items').insert(toSnakeCase(item)).select().single();
     if (error) throw error;
     return data as CartItem;
   }
@@ -329,8 +341,8 @@ export class SupabaseStorage implements IStorage {
   // Orders
   async createOrder(order: InsertOrder, items: { productId?: number; collectionId?: string; variantId?: number; price: number; quantity: number; creatorId: string }[]): Promise<Order> {
     const { data: ord, error: ordErr } = await supabaseAdmin.from('orders').insert({
-      ...order,
-      createdAt: new Date()
+      ...toSnakeCase(order),
+      created_at: new Date()
     }).select().single();
     if (ordErr) throw ordErr;
 
@@ -352,13 +364,13 @@ export class SupabaseStorage implements IStorage {
   }
 
   async verifyOrder(orderId: number, adminId: string): Promise<Order> {
-    const { data, error } = await supabaseAdmin.from('orders').update({ isVerified: true, status: 'paid' }).eq('id', orderId).select().single();
+    const { data, error } = await supabaseAdmin.from('orders').update({ is_verified: true, status: 'paid' }).eq('id', orderId).select().single();
     if (error) throw error;
     return data as Order;
   }
 
   async listPendingOrders(): Promise<Order[]> {
-    const { data } = await supabaseAdmin.from('orders').select('*').eq('isVerified', false);
+    const { data } = await supabaseAdmin.from('orders').select('*').eq('is_verified', false);
     return data as Order[] || [];
   }
 
@@ -387,7 +399,7 @@ export class SupabaseStorage implements IStorage {
 
   // Economic
   async createEarning(earning: InsertEarning): Promise<Earning> {
-    const { data, error } = await supabaseAdmin.from('earnings').insert(earning).select().single();
+    const { data, error } = await supabaseAdmin.from('earnings').insert(toSnakeCase(earning)).select().single();
     if (error) throw error;
     return data as Earning;
   }
@@ -398,7 +410,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createPayout(payout: InsertPayout): Promise<Payout> {
-    const { data, error } = await supabaseAdmin.from('payouts').insert(payout).select().single();
+    const { data, error } = await supabaseAdmin.from('payouts').insert(toSnakeCase(payout)).select().single();
     if (error) throw error;
     return data as Payout;
   }
@@ -415,7 +427,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createReview(review: InsertReview): Promise<Review> {
-    const { data, error } = await supabaseAdmin.from('reviews').insert({ ...review, createdAt: new Date() }).select().single();
+    const { data, error } = await supabaseAdmin.from('reviews').insert({ ...toSnakeCase(review), created_at: new Date() }).select().single();
     if (error) throw error;
     return data as Review;
   }
@@ -427,7 +439,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createCoupon(coupon: InsertCoupon): Promise<Coupon> {
-    const { data, error } = await supabaseAdmin.from('coupons').insert({ ...coupon, createdAt: new Date() }).select().single();
+    const { data, error } = await supabaseAdmin.from('coupons').insert({ ...toSnakeCase(coupon), created_at: new Date() }).select().single();
     if (error) throw error;
     return data as Coupon;
   }
@@ -448,7 +460,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createShippingRate(rate: InsertShippingRate): Promise<ShippingRate> {
-    const { data, error } = await supabaseAdmin.from('shipping_rates').insert({ ...rate, createdAt: new Date() }).select().single();
+    const { data, error } = await supabaseAdmin.from('shipping_rates').insert({ ...toSnakeCase(rate), created_at: new Date() }).select().single();
     if (error) throw error;
     return data as ShippingRate;
   }
@@ -463,7 +475,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createShippingAddress(address: InsertShippingAddress): Promise<ShippingAddress> {
-    const { data, error } = await supabaseAdmin.from('shipping_addresses').insert({ ...address, createdAt: new Date() }).select().single();
+    const { data, error } = await supabaseAdmin.from('shipping_addresses').insert({ ...toSnakeCase(address), created_at: new Date() }).select().single();
     if (error) throw error;
     return data as ShippingAddress;
   }
