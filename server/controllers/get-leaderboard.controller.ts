@@ -77,6 +77,8 @@ export const getLeaderboard = async (req: any, res: any) => {
                 rank: item.rank,
                 followersCount: item.followers_count,
                 booksCount: item.books_count,
+                salesCount: item.sales_count || 0,
+                avgRating: item.avg_rating || 0,
                 user: {
                     id: user.id || item.user_id,
                     username: user.username || 'unknown',

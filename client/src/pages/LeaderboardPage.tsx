@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Trophy, Users, BookOpen, CheckCircle2, TrendingUp, Crown, Medal, Award, ArrowRight } from "lucide-react";
+import { Trophy, Users, BookOpen, CheckCircle2, TrendingUp, Crown, Medal, Award, ArrowRight, ShoppingBag, Star } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { callEdgeFunction } from "@/hooks/use-edge-functions";
 import { Navbar } from "@/components/Navbar";
@@ -9,6 +9,8 @@ interface LeaderboardEntry {
   rank: number;
   followersCount: number;
   booksCount: number;
+  salesCount: number;
+  avgRating: number;
   user: {
     id: string;
     username: string;
@@ -221,7 +223,7 @@ function PodiumCard({ entry, order, isFeatured = false }: { entry: LeaderboardEn
           </div>
 
           {/* Stats */}
-          <div className="flex gap-4 text-xs mt-1">
+          <div className="flex flex-wrap justify-center gap-3 text-xs mt-1">
             <div className="flex flex-col items-center">
               <span className="font-black text-white">{formatNumber(entry.followersCount)}</span>
               <span className="text-gray-500">متابع</span>
@@ -230,6 +232,16 @@ function PodiumCard({ entry, order, isFeatured = false }: { entry: LeaderboardEn
             <div className="flex flex-col items-center">
               <span className="font-black text-white">{formatNumber(entry.booksCount)}</span>
               <span className="text-gray-500">كتاب</span>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="flex flex-col items-center">
+              <span className="font-black text-white">{formatNumber(entry.salesCount ?? 0)}</span>
+              <span className="text-gray-500">مبيعة</span>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="flex flex-col items-center">
+              <span className="font-black text-white">{(entry.avgRating ?? 0).toFixed(1)} ⭐</span>
+              <span className="text-gray-500">تقييم</span>
             </div>
           </div>
         </div>
@@ -268,7 +280,7 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
         </div>
 
         {/* Stats */}
-        <div className="hidden sm:flex items-center gap-6 text-sm text-gray-400">
+        <div className="hidden sm:flex items-center gap-5 text-sm text-gray-400">
           <div className="flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5 text-[#7c3aed]" />
             <span className="font-semibold text-white">{formatNumber(entry.followersCount)}</span>
@@ -276,6 +288,14 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
           <div className="flex items-center gap-1.5">
             <BookOpen className="w-3.5 h-3.5 text-[#7c3aed]" />
             <span className="font-semibold text-white">{formatNumber(entry.booksCount)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ShoppingBag className="w-3.5 h-3.5 text-[#7c3aed]" />
+            <span className="font-semibold text-white">{formatNumber(entry.salesCount ?? 0)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Star className="w-3.5 h-3.5 text-yellow-400" />
+            <span className="font-semibold text-white">{(entry.avgRating ?? 0).toFixed(1)}</span>
           </div>
         </div>
 
