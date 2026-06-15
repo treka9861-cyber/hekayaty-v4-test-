@@ -39,6 +39,7 @@ import approveBookClaimRoutes from './approve-book-claim.routes';
 import rejectBookClaimRoutes from './reject-book-claim.routes';
 import getLeaderboardRoutes from './get-leaderboard.routes';
 import updateLeaderboardRoutes from './update-leaderboard.routes';
+import toggleLeaderboardStatusRoutes from './toggle-leaderboard-status.routes';
 
 const router = Router();
 
@@ -82,5 +83,6 @@ router.use('/approve-book-claim', approveBookClaimRoutes);
 router.use('/reject-book-claim', rejectBookClaimRoutes);
 router.use('/leaderboard', getLeaderboardRoutes);
 router.use('/update-leaderboard', updateLeaderboardRoutes);
+router.use('/toggle-leaderboard-status', toggleLeaderboardStatusRoutes);
 
 export default router;

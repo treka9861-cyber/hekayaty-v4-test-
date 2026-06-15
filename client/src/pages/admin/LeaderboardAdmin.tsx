@@ -123,10 +123,10 @@ export function LeaderboardAdmin() {
   const toggleGlobalStatus = useMutation({
     mutationFn: async () => {
       const newValue = !isGloballyActive;
-      const { error } = await supabase
-        .from("platform_settings")
-        .upsert({ key: "is_leaderboard_active", value: newValue });
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      await callEdgeFunction("toggle-leaderboard-status", { isActive: newValue }, "POST");
       return newValue;
     },
     onSuccess: (newStatus) => {
