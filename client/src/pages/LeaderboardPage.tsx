@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Trophy, Users, BookOpen, CheckCircle2, TrendingUp, Crown, Medal, Award, ArrowRight } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { callEdgeFunction } from "@/hooks/use-edge-functions";
+import { Navbar } from "@/components/Navbar";
 
 interface LeaderboardEntry {
   rank: number;
@@ -66,7 +67,9 @@ export default function LeaderboardPage() {
         <meta name="description" content="Discover the most followed authors and creators on Hekayaty. See who's leading the storytelling community." />
       </Helmet>
 
-      <div className="min-h-screen bg-[#080808]" dir="rtl">
+      <div className="min-h-screen bg-[#080808] flex flex-col" dir="rtl">
+        <Navbar />
+
         {/* Hero Banner */}
         <div className="relative overflow-hidden bg-gradient-to-b from-[#0e0a1f] via-[#0a0a14] to-[#080808] border-b border-white/5">
           {/* Background Glow */}
