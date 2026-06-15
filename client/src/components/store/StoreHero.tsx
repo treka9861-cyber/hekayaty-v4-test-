@@ -36,18 +36,28 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
         .select('*', { count: 'exact', head: true })
         .eq('creator_id', user.id);
 
-      // 2. Books & Reviews
+      // 2. Books & Reviews (Published directly)
       const { data: products } = await supabase
         .from('products')
         .select('review_count, is_published')
         .eq('writer_id', user.id);
 
+      // 3. Books & Reviews (Co-authored via claims)
+      const { data: authoredBooks } = await supabase
+        .from('book_authors')
+        .select('book:book_id(review_count, is_published)')
+        .eq('author_user_id', user.id);
+
       // Only count published books
-      const publishedBooks = products?.filter(p => p.is_published !== false) || [];
-      const books = publishedBooks.length;
+      const publishedProducts = products?.filter(p => p.is_published !== false) || [];
+      const publishedAuthoredBooks = authoredBooks?.map((ab: any) => ab.book).filter((b: any) => b && b.is_published !== false) || [];
       
-      // Sum up all reviews across their published products
-      const reviews = publishedBooks.reduce((sum, p) => sum + (p.review_count || 0), 0);
+      const books = publishedProducts.length + publishedAuthoredBooks.length;
+      
+      // Sum up all reviews across their published products and authored books
+      const productReviews = publishedProducts.reduce((sum, p) => sum + (p.review_count || 0), 0);
+      const authoredReviews = publishedAuthoredBooks.reduce((sum, b: any) => sum + (b.review_count || 0), 0);
+      const reviews = productReviews + authoredReviews;
 
       return {
         followers: followers || 0,
