@@ -59,6 +59,7 @@ const UniverseManager = lazy(() => import("@/components/dashboard/UniverseManage
 const CommunityManager = lazy(() => import("@/components/dashboard/CommunityManager").then(m => ({ default: m.CommunityManager })));
 const MembershipManager = lazy(() => import("@/components/memberships/MembershipManager").then(m => ({ default: m.MembershipManager })));
 const SubscriptionUpgradeModal = lazy(() => import("@/components/memberships/SubscriptionUpgradeModal").then(m => ({ default: m.SubscriptionUpgradeModal })));
+const BookClaimsManager = lazy(() => import("@/components/dashboard/BookClaimsManager").then(m => ({ default: m.BookClaimsManager })));
 
 // Instant Skeleton State
 const DashboardSkeleton = () => <PageSkeleton />;
@@ -156,6 +157,7 @@ export default function Dashboard() {
           { id: "overview", label: t("dashboard.tabs.overview"), icon: Layout },
           { id: "products", label: t("dashboard.tabs.products"), icon: Package },
           { id: "orders", label: t("dashboard.tabs.orders"), icon: ShoppingBag, badge: pendingOrdersCount > 0 ? pendingOrdersCount : undefined },
+          { id: "book_claims", label: "طلبات الملكية", icon: BookOpen },
           { id: "wallet", label: t("dashboard.tabs.wallet"), icon: Wallet },
           { id: "memberships", label: t("dashboard.tabs.memberships"), icon: Crown },
         ]
@@ -700,11 +702,18 @@ export default function Dashboard() {
                       <ReaderUnifiedActivity user={user} />
                     </TabsContent>
                   ) : (
-                    <TabsContent value="commissions">
-                      <Suspense fallback={<DashboardSkeleton />}>
-                        <CommissionsManager user={user} />
-                      </Suspense>
-                    </TabsContent>
+                    <>
+                      <TabsContent value="commissions">
+                        <Suspense fallback={<DashboardSkeleton />}>
+                          <CommissionsManager user={user} />
+                        </Suspense>
+                      </TabsContent>
+                      <TabsContent value="book_claims" className="mt-0 outline-none">
+                        <Suspense fallback={<DashboardSkeleton />}>
+                          <BookClaimsManager />
+                        </Suspense>
+                      </TabsContent>
+                    </>
                   )}
 
                   {/* ORDERS */}

@@ -13,6 +13,7 @@ import { StoreProducts } from "@/components/store/StoreProducts";
 import { StoreUniverses } from "@/components/store/StoreUniverses";
 import { StoreCommunity } from "@/components/store/StoreCommunity";
 import { StoreMemberships } from "@/components/store/StoreMemberships";
+import { StoreAuthoredBooks } from "@/components/store/StoreAuthoredBooks";
 import { ExtendedStoreSettings } from "@/components/store/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SEO } from "@/components/SEO";
@@ -127,6 +128,9 @@ export default function WriterStore() {
             <TabsTrigger value="books" className="rounded-none px-0 py-4 text-sm font-medium text-gray-400 data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-[#cca660] transition-all">
               {t("writerStore.tabBooks")}
             </TabsTrigger>
+            <TabsTrigger value="books_by" className="rounded-none px-0 py-4 text-sm font-medium text-gray-400 data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-[#cca660] transition-all">
+              مؤلفاتي
+            </TabsTrigger>
             <TabsTrigger value="memberships" className="rounded-none px-0 py-4 text-sm font-medium text-gray-400 data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-[#cca660] transition-all flex items-center gap-2">
               <Crown className="w-4 h-4" /> {t("writerStore.tabMemberships")}
             </TabsTrigger>
@@ -155,6 +159,16 @@ export default function WriterStore() {
               themeColor={themeColor} 
               fontClass={fontClass} 
               products={productsData || []} 
+            />
+          </TabsContent>
+
+          <TabsContent value="books_by" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+            <StoreAuthoredBooks
+              user={user}
+              settings={settings}
+              isOwnStore={isOwnStore}
+              themeColor={themeColor}
+              fontClass={fontClass}
             />
           </TabsContent>
 

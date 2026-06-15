@@ -26,6 +26,8 @@ import { PageSkeleton } from "@/components/ui/skeleton-loader";
 import { useProductAccess } from "@/hooks/use-product-access";
 import { useLibraryStatus, useAddToLibrary } from "@/hooks/use-library";
 import { ReportDialog } from "@/components/ReportDialog";
+import { BookClaimButton } from "@/components/books/BookClaimButton";
+
 
 export default function ProductDetails() {
   const { t, i18n } = useTranslation();
@@ -242,6 +244,17 @@ export default function ProductDetails() {
                     </button>
                   </Link>
                 </motion.div>
+              </div>
+            )}
+
+            {/* Book Claim Button — only for non-publishers */}
+            {product.writerId && !isOwner && (
+              <div className="mb-4">
+                <BookClaimButton
+                  bookId={product.id}
+                  bookTitle={product.title}
+                  writerId={product.writerId}
+                />
               </div>
             )}
 

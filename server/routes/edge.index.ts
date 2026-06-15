@@ -32,6 +32,11 @@ import approveUpgradeRequestRoutes from './approve-upgrade-request.routes';
 import rejectUpgradeRequestRoutes from './reject-upgrade-request.routes';
 import getUpgradeRequestsRoutes from './get-upgrade-requests.routes';
 import getUserUpgradeRequestsRoutes from './get-user-upgrade-requests.routes';
+import submitBookClaimRoutes from './submit-book-claim.routes';
+import getBookClaimsRoutes from './get-book-claims.routes';
+import getUserBookClaimsRoutes from './get-user-book-claims.routes';
+import approveBookClaimRoutes from './approve-book-claim.routes';
+import rejectBookClaimRoutes from './reject-book-claim.routes';
 
 const router = Router();
 
@@ -68,5 +73,10 @@ router.use('/approve-upgrade-request', approveUpgradeRequestRoutes);
 router.use('/reject-upgrade-request', rejectUpgradeRequestRoutes);
 router.use('/get-upgrade-requests', getUpgradeRequestsRoutes);
 router.use('/get-user-upgrade-requests', getUserUpgradeRequestsRoutes);
+router.use('/submit-book-claim', submitBookClaimRoutes);
+router.use('/get-book-claims', getBookClaimsRoutes);
+router.use('/get-user-book-claims', getUserBookClaimsRoutes);
+router.use('/approve-book-claim', approveBookClaimRoutes);
+router.use('/reject-book-claim', rejectBookClaimRoutes);
 
 export default router;
