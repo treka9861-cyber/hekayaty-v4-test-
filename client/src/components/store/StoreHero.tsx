@@ -37,33 +37,41 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
         .select('*', { count: 'exact', head: true })
         .eq('creator_id', user.id);
 
-      // 2. Books & Reviews (Published directly)
+      // 2. Books, Reviews & Ratings (Published directly)
       const { data: products } = await supabase
         .from('products')
-        .select('review_count, is_published')
+        .select('rating, review_count, is_published')
         .eq('writer_id', user.id);
 
-      // 3. Books & Reviews (Co-authored via claims)
+      // 3. Books, Reviews & Ratings (Co-authored via claims)
       const { data: authoredBooks } = await supabase
         .from('book_authors')
-        .select('book:book_id(review_count, is_published)')
+        .select('book:book_id(rating, review_count, is_published)')
         .eq('author_user_id', user.id);
 
       // Only count published books
       const publishedProducts = products?.filter(p => p.is_published !== false) || [];
       const publishedAuthoredBooks = authoredBooks?.map((ab: any) => ab.book).filter((b: any) => b && b.is_published !== false) || [];
       
-      const books = publishedProducts.length + publishedAuthoredBooks.length;
+      const allPublishedBooks = [...publishedProducts, ...publishedAuthoredBooks];
+      const books = allPublishedBooks.length;
       
-      // Sum up all reviews across their published products and authored books
-      const productReviews = publishedProducts.reduce((sum, p) => sum + (p.review_count || 0), 0);
-      const authoredReviews = publishedAuthoredBooks.reduce((sum, b: any) => sum + (b.review_count || 0), 0);
-      const reviews = productReviews + authoredReviews;
+      // Sum up all reviews
+      const reviews = allPublishedBooks.reduce((sum, p: any) => sum + (p.review_count || 0), 0);
+
+      // Compute weighted average rating
+      // avgRating = sum(rating * review_count) / sum(review_count)
+      const totalWeightedRating = allPublishedBooks.reduce(
+        (sum, p: any) => sum + (p.rating || 0) * (p.review_count || 0), 0
+      );
+      const totalReviews = reviews;
+      const avgRating = totalReviews > 0 ? totalWeightedRating / totalReviews : 0;
 
       return {
         followers: followers || 0,
         books,
-        reviews
+        reviews,
+        avgRating: Math.round(avgRating * 10) / 10, // 1 decimal place
       };
     },
     enabled: !!user.id,
@@ -72,6 +80,7 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
   const followersCount = realStats?.followers ?? 0;
   const productsCount = realStats?.books ?? 0;
   const reviewCount = realStats?.reviews ?? 0;
+  const avgStoreRating = realStats?.avgRating ?? 0;
 
   // Fetch global rank
   const { data: rankData } = useQuery({
@@ -264,6 +273,8 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
           <StatBox icon={<BookOpen />} value={formatNumber(productsCount)} label="الكتب" />
           <div className="w-[1px] h-12 bg-white/5" />
           <StatBox icon={<Star />} value={formatNumber(reviewCount)} label="المراجعات" />
+          <div className="w-[1px] h-12 bg-white/5" />
+          <RatingStatBox rating={avgStoreRating} />
         </div>
 
       </div>
@@ -283,6 +294,34 @@ function StatBox({ icon, value, label }: { icon: React.ReactNode; value: string;
   );
 }
 
+function RatingStatBox({ rating }: { rating: number }) {
+  const filled = Math.round(rating); // 0-5 filled stars
+  return (
+    <div className="flex flex-col items-center justify-center text-center shrink-0 min-w-[100px] group/stat cursor-default transition-all duration-300">
+      {/* Star row */}
+      <div className="flex items-center gap-0.5 mb-2">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-3.5 h-3.5 transition-transform duration-300 group-hover/stat:scale-110 ${
+              star <= filled
+                ? 'fill-[#cca660] text-[#cca660]'
+                : 'fill-white/10 text-white/20'
+            }`}
+          />
+        ))}
+      </div>
+      {/* Numeric value */}
+      <div className="text-2xl font-black text-white tracking-tight group-hover/stat:text-[#cca660] transition-colors duration-300">
+        {rating > 0 ? rating.toFixed(1) : '—'}
+      </div>
+      <div className="text-[10px] font-bold text-gray-400 group-hover/stat:text-gray-300 uppercase tracking-widest mt-1 transition-colors duration-300">
+        تقييم المتجر
+      </div>
+    </div>
+  );
+}
+
 function formatNumber(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
@@ -290,3 +329,4 @@ function formatNumber(num: number): string {
 }
 
 import React from 'react';
+
