@@ -27,29 +27,41 @@ export function LeaderboardAdmin() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-leaderboard"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: leaderboardData, error: leaderboardError } = await supabase
         .from("account_leaderboard_cache")
-        .select(`
-          id,
-          rank,
-          followers_count,
-          books_count,
-          is_hidden,
-          calculated_at,
-          user:users!account_leaderboard_cache_user_id_fkey(
-            id,
-            username,
-            display_name,
-            avatar_url,
-            is_verified,
-            role
-          )
-        `)
+        .select("*")
         .order("rank", { ascending: true })
         .limit(200);
 
-      if (error) throw error;
-      return data;
+      if (leaderboardError) throw leaderboardError;
+      if (!leaderboardData || leaderboardData.length === 0) return [];
+
+      const userIds = leaderboardData.map((item: any) => item.user_id);
+      const { data: usersData, error: usersError } = await supabase
+        .from("users")
+        .select("id, username, display_name, avatar_url, is_verified, role")
+        .in("id", userIds);
+
+      if (usersError) console.error("Failed to fetch users for admin leaderboard:", usersError);
+
+      const userMap: Record<string, any> = {};
+      usersData?.forEach((user: any) => {
+        userMap[user.id] = user;
+      });
+
+      return leaderboardData.map((item: any) => ({
+        id: item.id,
+        rank: item.rank,
+        followers_count: item.followers_count,
+        books_count: item.books_count,
+        is_hidden: item.is_hidden,
+        calculated_at: item.calculated_at,
+        user: userMap[item.user_id] || {
+          id: item.user_id,
+          username: "unknown",
+          display_name: "Unknown User",
+        }
+      }));
     },
   });
 

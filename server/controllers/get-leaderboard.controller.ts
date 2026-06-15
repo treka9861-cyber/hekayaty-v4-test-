@@ -16,45 +16,61 @@ export const getLeaderboard = async (req: any, res: any) => {
         const page = parseInt(req.query.page) || 1;
         const offset = (page - 1) * limit;
 
-        const { data, error, count } = await supabase
+        // Fetch leaderboard entries without join to avoid PostgREST foreign key errors
+        const { data: leaderboardData, error: leaderboardError, count } = await supabase
             .from('account_leaderboard_cache')
-            .select(`
-                rank,
-                followers_count,
-                books_count,
-                views_count,
-                user:users!account_leaderboard_cache_user_id_fkey(
-                    id,
-                    username,
-                    display_name,
-                    avatar_url,
-                    is_verified,
-                    role
-                )
-            `, { count: 'exact' })
+            .select('*', { count: 'exact' })
             .eq('is_hidden', false)
             .order('rank', { ascending: true })
             .range(offset, offset + limit - 1);
 
-        if (error) {
-            console.error('[GetLeaderboard] Query error:', error);
+        if (leaderboardError) {
+            console.error('[GetLeaderboard] Query error:', leaderboardError);
             throw new Error('Failed to fetch leaderboard');
         }
 
+        if (!leaderboardData || leaderboardData.length === 0) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                meta: { total: count || 0, page, limit, totalPages: Math.ceil((count || 0) / limit) }
+            });
+        }
+
+        // Fetch user details for these entries
+        const userIds = leaderboardData.map((item: any) => item.user_id);
+        const { data: usersData, error: usersError } = await supabase
+            .from('users')
+            .select('id, username, display_name, avatar_url, is_verified, role')
+            .in('id', userIds);
+
+        if (usersError) {
+            console.error('[GetLeaderboard] Users fetch error:', usersError);
+        }
+
+        // Map users by ID for quick lookup
+        const userMap: Record<string, any> = {};
+        usersData?.forEach((user: any) => {
+            userMap[user.id] = user;
+        });
+
         // Format data
-        const formattedData = data.map((item: any) => ({
-            rank: item.rank,
-            followersCount: item.followers_count,
-            booksCount: item.books_count,
-            user: {
-                id: item.user?.id,
-                username: item.user?.username,
-                displayName: item.user?.display_name,
-                avatarUrl: item.user?.avatar_url,
-                isVerified: item.user?.is_verified,
-                role: item.user?.role
-            }
-        }));
+        const formattedData = leaderboardData.map((item: any) => {
+            const user = userMap[item.user_id] || {};
+            return {
+                rank: item.rank,
+                followersCount: item.followers_count,
+                booksCount: item.books_count,
+                user: {
+                    id: user.id || item.user_id,
+                    username: user.username || 'unknown',
+                    displayName: user.display_name || 'Unknown User',
+                    avatarUrl: user.avatar_url,
+                    isVerified: user.is_verified,
+                    role: user.role
+                }
+            };
+        });
 
         return res.status(200).json({
             success: true,
