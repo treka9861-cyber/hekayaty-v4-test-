@@ -5,6 +5,7 @@ import { Footer } from "@/components/Footer";
 import { useUser } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { useProducts } from "@/hooks/use-products";
+import { useAuthoredBooks } from "@/hooks/use-book-claims";
 import { useTrackStoreView } from "@/hooks/use-store-system";
 import { StoreHero } from "@/components/store/StoreHero";
 import { StoreHome } from "@/components/store/StoreHome";
@@ -31,6 +32,7 @@ export default function WriterStore() {
   const { user: currentUser } = useAuth();
   const { data: user, isLoading: userLoading } = useUser(username);
   const { data: productsData, isLoading: productsLoading } = useProducts({ writerId: user?.id });
+  const { data: authoredBooksData, isLoading: authoredLoading } = useAuthoredBooks(user?.id);
   const trackView = useTrackStoreView();
 
   const isOwnStore = currentUser?.username === username;
@@ -42,7 +44,7 @@ export default function WriterStore() {
     }
   }, [user?.id, isOwnStore]);
 
-  if (userLoading || productsLoading) {
+  if (userLoading || productsLoading || authoredLoading) {
     return <PageSkeleton />;
   }
 
@@ -68,6 +70,40 @@ export default function WriterStore() {
     }
   };
   const fontClass = getFontClass(font);
+
+  // Normalize authored books
+  const authoredBooks = (authoredBooksData || []).map((link: any) => {
+    const book = link.book;
+    if (!book) return null;
+    return {
+      ...book,
+      writerId: book.writer_id,
+      coverUrl: book.cover_url,
+      reviewCount: book.review_count,
+      isPublished: book.is_published,
+      salePrice: book.sale_price,
+      discountPercentage: book.discount_percentage,
+      saleEndsAt: book.sale_ends_at,
+      stockQuantity: book.stock_quantity,
+      requiresShipping: book.requires_shipping,
+      salesCount: book.sales_count,
+      isSerialized: book.is_serialized,
+      seriesStatus: book.series_status,
+      lastChapterUpdatedAt: book.last_chapter_updated_at,
+      merchandiseCategory: book.merchandise_category,
+      createdAt: book.created_at,
+      updatedAt: book.updated_at,
+    };
+  }).filter(Boolean);
+
+  // Combine publisher books and co-authored books
+  const allBooksMap = new Map();
+  [...(productsData || []), ...authoredBooks].forEach(b => {
+    if (b && b.id) {
+      allBooksMap.set(b.id, b);
+    }
+  });
+  const allBooks = Array.from(allBooksMap.values());
 
   return (
     <div className="min-h-screen relative bg-[#0a0a0a] text-white">
@@ -146,7 +182,7 @@ export default function WriterStore() {
               isOwnStore={isOwnStore} 
               themeColor={themeColor} 
               fontClass={fontClass} 
-              products={productsData || []} 
+              products={allBooks} 
               onTabChange={setActiveTab}
             />
           </TabsContent>
@@ -158,7 +194,7 @@ export default function WriterStore() {
               isOwnStore={isOwnStore} 
               themeColor={themeColor} 
               fontClass={fontClass} 
-              products={productsData || []} 
+              products={allBooks} 
             />
           </TabsContent>
 

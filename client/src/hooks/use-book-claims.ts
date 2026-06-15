@@ -173,7 +173,7 @@ export function useAuthoredBooks(authorUserId: string | null) {
       if (!authorUserId) return [];
       const { data, error } = await supabase
         .from('book_authors')
-        .select('*, book:book_id(id, title, cover_url, genre, rating, review_count, writer_id)')
+        .select('*, book:book_id(*)')
         .eq('author_user_id', authorUserId);
       if (error) throw error;
       return data ?? [];
