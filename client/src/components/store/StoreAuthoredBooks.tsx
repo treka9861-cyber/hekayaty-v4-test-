@@ -75,14 +75,13 @@ export function StoreAuthoredBooks({ user, themeColor, fontClass }: StoreAuthore
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
                   
                   {/* Rating Badge */}
-                  {book.review_count > 0 && (
-                    <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
-                      <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                      <span className="text-[10px] font-bold text-white">
-                        {(book.rating > 5 ? book.rating / 10 : book.rating).toFixed(1)}
-                      </span>
-                    </div>
-                  )}
+                  <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
+                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                    <span className="text-[10px] font-bold text-white">
+                      {book.rating ? (book.rating > 5 ? book.rating / 10 : book.rating).toFixed(1) : "0.0"}
+                    </span>
+                    <span className="text-white/60 text-[9px]">({book.review_count || 0})</span>
+                  </div>
                 </div>
 
                 <div className="p-4 flex flex-col flex-1">
