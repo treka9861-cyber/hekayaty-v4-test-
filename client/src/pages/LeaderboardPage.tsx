@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Trophy, Users, BookOpen, CheckCircle2, TrendingUp, Crown, Medal, Award, ArrowRight, ShoppingBag, Star } from "lucide-react";
+import { Trophy, Users, BookOpen, CheckCircle2, TrendingUp, Crown, Medal, Award, ArrowRight, ShoppingBag, Star, StarHalf } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { callEdgeFunction } from "@/hooks/use-edge-functions";
 import { Navbar } from "@/components/Navbar";
@@ -11,6 +12,7 @@ interface LeaderboardEntry {
   booksCount: number;
   salesCount: number;
   avgRating: number;
+  ratingsCount?: number;
   user: {
     id: string;
     username: string;
@@ -48,11 +50,15 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
+type TabType = 'most_followed' | 'highest_rated' | 'most_books';
+
 export default function LeaderboardPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('most_followed');
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["leaderboard", "accounts"],
+    queryKey: ["leaderboard", activeTab],
     queryFn: async () => {
-      const result = await callEdgeFunction("leaderboard", undefined, "GET");
+      const result = await callEdgeFunction(`leaderboard?category=${activeTab}`, undefined, "GET");
       return result as { data: LeaderboardEntry[]; meta: any };
     },
     staleTime: 5 * 60 * 1000, // 5 min cache
@@ -111,6 +117,43 @@ export default function LeaderboardPage() {
                 <div className="text-xs text-gray-500 uppercase tracking-wider mt-1">يتحدث الآن</div>
               </div>
             </div>
+
+            {/* Tabs */}
+            <div className="flex items-center justify-center gap-2 mt-12 overflow-x-auto pb-2 custom-scrollbar">
+              <button
+                onClick={() => setActiveTab('most_followed')}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === 'most_followed' 
+                    ? 'bg-[#7c3aed] text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]' 
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                الأكثر متابعة
+              </button>
+              <button
+                onClick={() => setActiveTab('highest_rated')}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === 'highest_rated' 
+                    ? 'bg-[#7c3aed] text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]' 
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Star className="w-4 h-4" />
+                الأعلى تقييماً
+              </button>
+              <button
+                onClick={() => setActiveTab('most_books')}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+                  activeTab === 'most_books' 
+                    ? 'bg-[#7c3aed] text-white shadow-[0_0_20px_rgba(124,58,237,0.3)]' 
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                الأكثر كتباً
+              </button>
+            </div>
           </div>
         </div>
 
@@ -154,15 +197,15 @@ export default function LeaderboardPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Rank 2 */}
                 {top3[1] && (
-                  <PodiumCard entry={top3[1]} order="sm:order-first sm:mt-8" />
+                  <PodiumCard entry={top3[1]} order="sm:order-first sm:mt-8" activeTab={activeTab} />
                 )}
                 {/* Rank 1 */}
                 {top3[0] && (
-                  <PodiumCard entry={top3[0]} order="" isFeatured />
+                  <PodiumCard entry={top3[0]} order="" isFeatured activeTab={activeTab} />
                 )}
                 {/* Rank 3 */}
                 {top3[2] && (
-                  <PodiumCard entry={top3[2]} order="sm:order-last sm:mt-16" />
+                  <PodiumCard entry={top3[2]} order="sm:order-last sm:mt-16" activeTab={activeTab} />
                 )}
               </div>
             </div>
@@ -174,7 +217,7 @@ export default function LeaderboardPage() {
               <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 text-center">باقي الترتيب</h2>
               <div className="space-y-2">
                 {rest.map((entry) => (
-                  <LeaderboardRow key={entry.user.id} entry={entry} />
+                  <LeaderboardRow key={entry.user.id} entry={entry} activeTab={activeTab} />
                 ))}
               </div>
             </div>
@@ -185,7 +228,7 @@ export default function LeaderboardPage() {
   );
 }
 
-function PodiumCard({ entry, order, isFeatured = false }: { entry: LeaderboardEntry; order: string; isFeatured?: boolean }) {
+function PodiumCard({ entry, order, isFeatured = false, activeTab }: { entry: LeaderboardEntry; order: string; isFeatured?: boolean; activeTab: string }) {
   const username = entry.user.username || entry.user.id;
 
   return (
@@ -222,27 +265,35 @@ function PodiumCard({ entry, order, isFeatured = false }: { entry: LeaderboardEn
             <p className="text-gray-500 text-xs">@{username}</p>
           </div>
 
-          {/* Stats */}
-          <div className="flex flex-wrap justify-center gap-3 text-xs mt-1">
-            <div className="flex flex-col items-center">
-              <span className="font-black text-white">{formatNumber(entry.followersCount)}</span>
-              <span className="text-gray-500">متابع</span>
-            </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="flex flex-col items-center">
-              <span className="font-black text-white">{formatNumber(entry.booksCount)}</span>
-              <span className="text-gray-500">كتاب</span>
-            </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="flex flex-col items-center">
-              <span className="font-black text-white">{formatNumber(entry.salesCount ?? 0)}</span>
-              <span className="text-gray-500">مبيعة</span>
-            </div>
-            <div className="w-px h-8 bg-white/10" />
-            <div className="flex flex-col items-center">
-              <span className="font-black text-white">{(entry.avgRating ?? 0).toFixed(1)} ⭐</span>
-              <span className="text-gray-500">تقييم</span>
-            </div>
+          {/* Highlighted Stat for Active Tab */}
+          <div className="mt-2 mb-2 p-2 rounded-xl bg-black/20 w-full flex flex-col items-center justify-center">
+            {activeTab === 'most_followed' && (
+              <>
+                <div className="flex items-center gap-1 text-[#7c3aed] mb-1">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="text-xl font-black text-white">{formatNumber(entry.followersCount)}</div>
+                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">متابع</div>
+              </>
+            )}
+            {activeTab === 'most_books' && (
+              <>
+                <div className="flex items-center gap-1 text-[#cca660] mb-1">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div className="text-xl font-black text-white">{formatNumber(entry.booksCount)}</div>
+                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">كتاب</div>
+              </>
+            )}
+            {activeTab === 'highest_rated' && (
+              <>
+                <div className="flex items-center gap-1 text-yellow-400 mb-1">
+                  <Star className="w-4 h-4 fill-current" />
+                </div>
+                <div className="text-xl font-black text-white">{(entry.avgRating ?? 0).toFixed(1)}</div>
+                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">تقييم ({entry.ratingsCount || 0} مراجعة)</div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -250,7 +301,7 @@ function PodiumCard({ entry, order, isFeatured = false }: { entry: LeaderboardEn
   );
 }
 
-function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
+function LeaderboardRow({ entry, activeTab }: { entry: LeaderboardEntry; activeTab: string }) {
   const username = entry.user.username || entry.user.id;
 
   return (
@@ -280,27 +331,29 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
         </div>
 
         {/* Stats */}
-        <div className="hidden sm:flex items-center gap-5 text-sm text-gray-400">
-          <div className="flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-[#7c3aed]" />
-            <span className="font-semibold text-white">{formatNumber(entry.followersCount)}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <BookOpen className="w-3.5 h-3.5 text-[#7c3aed]" />
-            <span className="font-semibold text-white">{formatNumber(entry.booksCount)}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <ShoppingBag className="w-3.5 h-3.5 text-[#7c3aed]" />
-            <span className="font-semibold text-white">{formatNumber(entry.salesCount ?? 0)}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Star className="w-3.5 h-3.5 text-yellow-400" />
-            <span className="font-semibold text-white">{(entry.avgRating ?? 0).toFixed(1)}</span>
-          </div>
+        <div className="flex items-center gap-5 text-sm text-gray-400">
+          {activeTab === 'most_followed' && (
+            <div className="flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-[#7c3aed]" />
+              <span className="font-bold text-white text-lg">{formatNumber(entry.followersCount)}</span>
+            </div>
+          )}
+          {activeTab === 'most_books' && (
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-[#cca660]" />
+              <span className="font-bold text-white text-lg">{formatNumber(entry.booksCount)}</span>
+            </div>
+          )}
+          {activeTab === 'highest_rated' && (
+            <div className="flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+              <span className="font-bold text-white text-lg">{(entry.avgRating ?? 0).toFixed(1)}</span>
+            </div>
+          )}
         </div>
 
         {/* Arrow */}
-        <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 group-hover:translate-x-[-2px] transition-all duration-200 shrink-0" />
+        <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 group-hover:translate-x-[-2px] transition-all duration-200 shrink-0 mr-4" />
       </div>
     </Link>
   );

@@ -32,9 +32,18 @@ export const getLeaderboard = async (req: any, res: any) => {
             });
         }
 
+        const category = req.query.category || 'most_followed';
+        let tableName = 'ranking_most_followed_cache';
+        
+        if (category === 'highest_rated') {
+            tableName = 'ranking_highest_rated_cache';
+        } else if (category === 'most_books') {
+            tableName = 'ranking_most_books_cache';
+        }
+
         // Fetch leaderboard entries without join to avoid PostgREST foreign key errors
         const { data: leaderboardData, error: leaderboardError, count } = await supabase
-            .from('account_leaderboard_cache')
+            .from(tableName)
             .select('*', { count: 'exact' })
             .eq('is_hidden', false)
             .order('rank', { ascending: true })
@@ -75,10 +84,10 @@ export const getLeaderboard = async (req: any, res: any) => {
             const user = userMap[item.user_id] || {};
             return {
                 rank: item.rank,
-                followersCount: item.followers_count,
-                booksCount: item.books_count,
-                salesCount: item.sales_count || 0,
+                followersCount: item.followers_count || 0,
+                booksCount: item.books_count || 0,
                 avgRating: item.avg_rating || 0,
+                ratingsCount: item.ratings_count || 0,
                 user: {
                     id: user.id || item.user_id,
                     username: user.username || 'unknown',

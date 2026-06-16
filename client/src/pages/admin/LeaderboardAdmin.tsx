@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { callEdgeFunction } from "@/hooks/use-edge-functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trophy, RefreshCw, Eye, EyeOff, CheckCircle2, Users, BookOpen, Loader2, ExternalLink } from "lucide-react";
+import { Trophy, RefreshCw, Eye, EyeOff, CheckCircle2, Users, BookOpen, Loader2, ExternalLink, Settings } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -120,6 +122,46 @@ export function LeaderboardAdmin() {
 
   const isGloballyActive = globalStatus !== false;
 
+  // Fetch minimum ratings threshold
+  const { data: minRatingsData } = useQuery({
+    queryKey: ["admin-min-ratings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "ranking_min_ratings")
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data && data.value ? parseInt(data.value.toString()) : 20;
+    },
+  });
+
+  const [minRatings, setMinRatings] = useState<number>(20);
+
+  useEffect(() => {
+    if (minRatingsData !== undefined) {
+      setMinRatings(minRatingsData);
+    }
+  }, [minRatingsData]);
+
+  const updateMinRatings = useMutation({
+    mutationFn: async (newValue: number) => {
+      const { error } = await supabase
+        .from("platform_settings")
+        .upsert({ key: "ranking_min_ratings", value: newValue }, { onConflict: "key" });
+      if (error) throw error;
+      return newValue;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-min-ratings"] });
+      toast({ title: "تم التحديث", description: "تم حفظ إعداد الحد الأدنى للتقييمات بنجاح." });
+    },
+    onError: (e: any) => {
+      toast({ title: "خطأ", description: e.message, variant: "destructive" });
+    },
+  });
+
   const toggleGlobalStatus = useMutation({
     mutationFn: async () => {
       const newValue = !isGloballyActive;
@@ -143,6 +185,42 @@ export function LeaderboardAdmin() {
 
   return (
     <div className="space-y-6 mt-6">
+      {/* Settings Panel */}
+      <Card className="glass-card border-primary/20 bg-black/60 shadow-2xl overflow-hidden">
+        <CardHeader className="bg-white/5 border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Settings className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <CardTitle className="text-xl text-white">إعدادات التصنيف</CardTitle>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4 max-w-xl">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="minRatings" className="text-gray-300">الحد الأدنى لعدد التقييمات للدخول في تصنيف "الأعلى تقييماً"</Label>
+              <Input
+                id="minRatings"
+                type="number"
+                min={1}
+                value={minRatings}
+                onChange={(e) => setMinRatings(parseInt(e.target.value) || 0)}
+                className="bg-white/5 border-white/10 text-white"
+              />
+            </div>
+            <Button 
+              onClick={() => updateMinRatings.mutate(minRatings)}
+              disabled={updateMinRatings.isPending || minRatings === minRatingsData}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {updateMinRatings.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "حفظ التغييرات"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="glass-card border-primary/20 bg-black/60 shadow-2xl overflow-hidden">
         <CardHeader className="bg-white/5 border-b border-white/5">
           <div className="flex items-center justify-between">

@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, jsonb, integer, serial, uuid, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, jsonb, integer, serial, uuid, numeric, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -966,4 +966,39 @@ export const accountLeaderboardCache = pgTable("account_leaderboard_cache", {
   isHidden: boolean("is_hidden").default(false), // Admin override
 });
 
+export const rankingMostFollowedCache = pgTable("ranking_most_followed_cache", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // UUID ref to users
+  rank: integer("rank").notNull(),
+  followersCount: integer("followers_count").notNull().default(0),
+  booksCount: integer("books_count").notNull().default(0),
+  accountCreatedAt: timestamp("account_created_at"),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+  isHidden: boolean("is_hidden").default(false),
+});
+
+export const rankingHighestRatedCache = pgTable("ranking_highest_rated_cache", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // UUID ref to users
+  rank: integer("rank").notNull(),
+  avgRating: real("avg_rating").notNull().default(0),
+  ratingsCount: integer("ratings_count").notNull().default(0),
+  followersCount: integer("followers_count").notNull().default(0),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+  isHidden: boolean("is_hidden").default(false),
+});
+
+export const rankingMostBooksCache = pgTable("ranking_most_books_cache", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // UUID ref to users
+  rank: integer("rank").notNull(),
+  booksCount: integer("books_count").notNull().default(0),
+  followersCount: integer("followers_count").notNull().default(0),
+  calculatedAt: timestamp("calculated_at").defaultNow(),
+  isHidden: boolean("is_hidden").default(false),
+});
+
 export type AccountLeaderboardCache = typeof accountLeaderboardCache.$inferSelect;
+export type RankingMostFollowedCache = typeof rankingMostFollowedCache.$inferSelect;
+export type RankingHighestRatedCache = typeof rankingHighestRatedCache.$inferSelect;
+export type RankingMostBooksCache = typeof rankingMostBooksCache.$inferSelect;

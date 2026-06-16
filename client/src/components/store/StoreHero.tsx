@@ -82,21 +82,27 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
   const reviewCount = realStats?.reviews ?? 0;
   const avgStoreRating = realStats?.avgRating ?? 0;
 
-  // Fetch global rank
+  // Fetch ranks across all 3 ranking categories
   const { data: rankData } = useQuery({
-    queryKey: ["user-leaderboard-rank", user.id],
+    queryKey: ["user-all-ranks", user.id],
     queryFn: async () => {
-      const { data: rows } = await supabase
-        .from('account_leaderboard_cache')
-        .select('rank')
-        .eq('user_id', user.id)
-        .eq('is_hidden', false)
-        .maybeSingle();
-      return rows;
+      const [followedRow, ratedRow, booksRow] = await Promise.all([
+        supabase.from('ranking_most_followed_cache').select('rank').eq('user_id', user.id).eq('is_hidden', false).maybeSingle(),
+        supabase.from('ranking_highest_rated_cache').select('rank').eq('user_id', user.id).eq('is_hidden', false).maybeSingle(),
+        supabase.from('ranking_most_books_cache').select('rank').eq('user_id', user.id).eq('is_hidden', false).maybeSingle(),
+      ]);
+      return {
+        followedRank: followedRow.data?.rank ?? null,
+        ratedRank: ratedRow.data?.rank ?? null,
+        booksRank: booksRow.data?.rank ?? null,
+      };
     },
     enabled: !!user.id,
   });
-  const globalRank = rankData?.rank ?? null;
+  const followedRank = rankData?.followedRank ?? null;
+  const ratedRank = rankData?.ratedRank ?? null;
+  const booksRank = rankData?.booksRank ?? null;
+
   const { data: isFollowing } = useQuery({
     queryKey: ["follow-status", user.id, currentUser?.id],
     queryFn: async () => {
@@ -204,10 +210,22 @@ export function StoreHero({ user, settings, isOwnStore, themeColor, fontClass }:
                 </span>
                 {isPublishingHouse ? 'ناشر موثق' : 'مؤلف الأكثر مبيعاً'}
               </span>
-              {globalRank !== null && (
-                <a href="/leaderboards/accounts" className="flex items-center gap-1 bg-[#7c3aed]/15 border border-[#7c3aed]/30 rounded-full px-2.5 py-0.5 hover:bg-[#7c3aed]/25 transition-colors">
+              {followedRank !== null && followedRank <= 100 && (
+                <a href="/leaderboards/accounts" className="flex items-center gap-1 bg-[#7c3aed]/15 border border-[#7c3aed]/30 rounded-full px-2.5 py-0.5 hover:bg-[#7c3aed]/25 transition-colors" title="الأكثر متابعة">
                   <Trophy className="w-3 h-3 text-[#c084fc]" />
-                  <span className="text-[#c084fc] text-[11px] font-bold">#{globalRank} عالمياً</span>
+                  <span className="text-[#c084fc] text-[11px] font-bold">#{followedRank} متابعة</span>
+                </a>
+              )}
+              {ratedRank !== null && ratedRank <= 100 && (
+                <a href="/leaderboards/accounts" className="flex items-center gap-1 bg-yellow-500/15 border border-yellow-500/30 rounded-full px-2.5 py-0.5 hover:bg-yellow-500/25 transition-colors" title="الأعلى تقييماً">
+                  <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                  <span className="text-yellow-400 text-[11px] font-bold">#{ratedRank} تقييماً</span>
+                </a>
+              )}
+              {booksRank !== null && booksRank <= 100 && (
+                <a href="/leaderboards/accounts" className="flex items-center gap-1 bg-amber-700/15 border border-amber-700/30 rounded-full px-2.5 py-0.5 hover:bg-amber-700/25 transition-colors" title="الأكثر كتباً">
+                  <BookOpen className="w-3 h-3 text-amber-500" />
+                  <span className="text-amber-500 text-[11px] font-bold">#{booksRank} كتباً</span>
                 </a>
               )}
             </div>
